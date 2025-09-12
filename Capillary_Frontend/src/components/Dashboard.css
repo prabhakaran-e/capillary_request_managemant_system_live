@@ -1,0 +1,160 @@
+.dashboard-container {
+  min-height: 100vh;
+  background-color: #f5f7fa;
+}
+
+.dashboard-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.nav-brand {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.logout-button {
+  padding: 0.5rem 1rem;
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.logout-button:hover {
+  background-color: #c0392b;
+}
+
+.dashboard-main {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 2rem;
+}
+
+.profile-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+
+.profile-header h1 {
+  font-size: 2rem;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.profile-image-container {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.profile-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.profile-image-placeholder {
+  width: 100%;
+  height: 100%;
+  background-color: #3498db;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: bold;
+}
+
+.profile-info {
+  border-top: 1px solid #eee;
+  padding-top: 1.5rem;
+}
+
+.info-item {
+  margin-bottom: 1rem;
+}
+
+.info-item label {
+  display: block;
+  font-size: 0.9rem;
+  color: #7f8c8d;
+  margin-bottom: 0.5rem;
+}
+
+.info-item p {
+  font-size: 1.1rem;
+  color: #2c3e50;
+  margin: 0;
+}
+
+.dashboard-widgets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.widget {
+  background-color: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.widget h3 {
+  color: #2c3e50;
+  margin: 0 0 1rem 0;
+}
+
+.widget p {
+  color: #7f8c8d;
+  margin: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .dashboard-nav {
+    padding: 1rem;
+  }
+
+  .dashboard-main {
+    padding: 0 1rem;
+  }
+
+  .profile-header {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .profile-header h1 {
+    margin-bottom: 1rem;
+  }
+
+  .profile-image-container {
+    margin: 1rem 0;
+  }
+
+  .dashboard-widgets {
+    grid-template-columns: 1fr;
+  }
+}
