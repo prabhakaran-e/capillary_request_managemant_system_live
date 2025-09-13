@@ -1,4 +1,4 @@
-const SESSION_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const SESSION_KEY = "sessionStartTime";
 const AUTH_TOKEN_KEY = "authToken";
 

@@ -21,6 +21,8 @@ const poData = require("./routes/purchaseOrderRoute")
 const smtpRouter = require("./routes/smtpRoutes")
 
 const newKeyData = require("./routes/restApi/ssoRoute")
+const { loadSecrets } = require("./utils/secretLoader");
+
 
 
 
@@ -29,9 +31,9 @@ dotenv.config();
 const app = express();
 const port = 3002;
 
-db(); // Initialize database connection
+db(); 
 
-// CORS headers (optional, consider removing if not needed)
+
 app.use((req, res, next) => {
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
   res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
