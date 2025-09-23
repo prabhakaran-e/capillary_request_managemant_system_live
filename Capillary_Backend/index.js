@@ -27,8 +27,8 @@ dotenv.config();
 async function startServer() {
   try {
     // 1️⃣ Load secrets before anything else
-    // await loadSecrets();
-    require("./utils/poExpiryReminderEmail")
+    await loadSecrets();
+    // require("./utils/poExpiryReminderEmail")
 
     // 2️⃣ Connect to DB
     await db();
