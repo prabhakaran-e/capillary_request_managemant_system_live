@@ -29,6 +29,8 @@ async function startServer() {
     // 1️⃣ Load secrets before anything else
     await loadSecrets();
     // require("./utils/poExpiryReminderEmail")
+    console.log("👉 MONGO_DB from secrets:", process.env.MONGO_USERNAME_SANDBOX );
+
 
     // 2️⃣ Connect to DB
     await db();
