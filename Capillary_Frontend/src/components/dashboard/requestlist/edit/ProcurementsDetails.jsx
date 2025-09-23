@@ -913,6 +913,19 @@ const Procurements = ({ formData, setFormData, onBack, onNext, reqId }) => {
                                 placeholder="Enter Quotation Number"
                             />
                         </div>
+                        <div className="w-full">
+                            <label className="block text-xs sm:text-sm font-semibold text-gray-700 mb-2">
+                                Quotation Number
+                            </label>
+                            <input
+                                type="text"
+                                name="quotationNumber"
+                                value={formData?.quotationNumber || ""}
+                                onChange={handleInputChange}
+                                className="w-full px-3 py-2 sm:px-4 sm:py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition duration-300"
+                                placeholder="Enter Quotation Number"
+                            />
+                        </div>
                     </div>
 
                     {/* Service Period Inputs */}
@@ -1346,14 +1359,7 @@ const Procurements = ({ formData, setFormData, onBack, onNext, reqId }) => {
                         </div>
                     </div>
 
-                    {/* Navigation Buttons */}
                     <div className="mt-6 sm:mt-8 flex justify-between space-x-4">
-                        {/* <button
-                            onClick={onBack}
-                            className="px-4 py-2 sm:px-6 sm:py-2 w-1/2 sm:w-40 text-xs sm:text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary"
-                        >
-                            Back
-                        </button> */}
                         <div></div>
                         <button
                             onClick={handleSubmit}

@@ -15,7 +15,6 @@ const approveRequest = async (req, res) => {
       status = "Rejected";
     }
 
-
     const remarks = reason;
 
     // Fetch required data
@@ -97,7 +96,6 @@ const approveRequest = async (req, res) => {
         await reqData.save();
       }
 
-      // Send emails for Hold/Reject status
       // await sendIndividualEmail(
       //   "EMPLOYEE",
       //   requesterData.company_email_id,
@@ -168,7 +166,6 @@ const approveRequest = async (req, res) => {
         });
       }
       if (reqData.status === "Hold" || reqData.status === "Rejected") {
-        console.log("A checkigm");
         reqData.status = "Pending";
         await reqData.save();
       }
@@ -215,6 +212,15 @@ const approveRequest = async (req, res) => {
         reqData.status = "Pending";
         reqData.approvals.push(approvalRecord);
         await reqData.save();
+
+        await sendIndividualEmail(
+          "EMPLOYEE",
+          requesterData.company_email_id,
+          requesterData.full_name,
+          requesterData.department,
+          reqData.reqid,
+          approvalRecord
+        );
       }
 
       // Business Finance Auto-approval flow
@@ -371,16 +377,16 @@ const approveRequest = async (req, res) => {
                     .split(",")
                     .map((email) => email.trim())
                     .filter(Boolean);
-                  for (i = 0; i < emailList.length; i++) {
-                    // await sendIndividualEmail(
-                    //   "AUTHORITY",
-                    //   emailList[i],
-                    //   autoApproverData.full_name,
-                    //   autoDepartment,
-                    //   reqData.reqid,
-                    //   autoApprovalRecord
-                    // );
-                  }
+                  // for (i = 0; i < emailList.length; i++) {
+                  //   await sendIndividualEmail(
+                  //     "AUTHORITY",
+                  //     emailList[i],
+                  //     autoApproverData.full_name,
+                  //     autoDepartment,
+                  //     reqData.reqid,
+                  //     autoApprovalRecord
+                  //   );
+                  // }
 
                   console.log("Checking the entity email", emailList);
                   break;
@@ -969,15 +975,13 @@ const approveRequest = async (req, res) => {
           { poMailId: 1 }
         );
 
-        // if (entityMail?.poMailId) {
-        //   await sendEmail(entityMail.poMailId, "financeApprovalEmail", {
-        //     reqid: reqData.reqid,
-        //     reqId,
-        //   });
-        // }
+        if (entityMail?.poMailId) {
+          await sendEmail(entityMail.poMailId, "financeApprovalEmail", {
+            reqid: reqData.reqid,
+            reqId,
+          });
+        }
       } else {
-        console.log("Am in else bloack", approvalRecord);
-
         reqData.approvals.push(approvalRecord);
         await reqData.save();
         // await sendIndividualEmail(
@@ -1155,7 +1159,6 @@ const businessFinanceBulkApproval = async (req, res) => {
               }
             );
 
-            // Notify Employee
             // await sendIndividualEmail(
             //   "EMPLOYEE",
             //   requesterData.company_email_id,

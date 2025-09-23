@@ -10,6 +10,8 @@ import {
   Copy,
   ExternalLink,
   Check,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -21,6 +23,7 @@ import {
 } from "../../../api/service/adminServices";
 import Pagination from "../requestlist/Pagination";
 import LoadingSpinner from "../../spinner/LoadingSpinner";
+import TableContent from "./TableContent";
 
 const RoleBasedApprovals = () => {
   const userId = localStorage.getItem("capEmpId");
@@ -40,6 +43,10 @@ const RoleBasedApprovals = () => {
   const [reqId, setReqId] = useState(null);
   const [showAllData, setShowAllData] = useState(false);
   const [copiedReqId, setCopiedReqId] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("");
+  const [availableDepartments, setAvailableDepartments] = useState([]);
+  const [showDepartmentOptions, setShowDepartmentOptions] = useState(false);
   const [dateFilters, setDateFilters] = useState({
     fromDate: "",
     toDate: "",
@@ -47,6 +54,38 @@ const RoleBasedApprovals = () => {
   const [currencies, setCurrencies] = useState([]);
 
   const itemsPerPage = 20;
+  const statusesWithDepartments = ["Pending", "Rejected", "Hold"];
+
+  // Function to extract unique departments from data based on status
+  const getAvailableDepartmentsForStatus = (status, data) => {
+    if (!statusesWithDepartments.includes(status)) {
+      return [];
+    }
+
+    const filteredData = data.filter((item) => item.status === status);
+    const departments = filteredData
+      .map((item) => item.nextDepartment)
+      .filter((dept) => dept && dept.trim() !== "") // Filter out null, undefined, or empty strings
+      .filter((dept, index, arr) => arr.indexOf(dept) === index) // Remove duplicates
+      .sort(); // Sort alphabetically
+
+    return departments;
+  };
+
+  // Update available departments when status changes or data changes
+  useEffect(() => {
+    if (statusFilter && statusesWithDepartments.includes(statusFilter)) {
+      const departments = getAvailableDepartmentsForStatus(statusFilter, users);
+      setAvailableDepartments(departments);
+
+      // If current department filter is not available in new list, clear it
+      if (departmentFilter && !departments.includes(departmentFilter)) {
+        setDepartmentFilter("");
+      }
+    } else {
+      setAvailableDepartments([]);
+    }
+  }, [statusFilter, users, departmentFilter]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -98,7 +137,36 @@ const RoleBasedApprovals = () => {
         const employeeMatch = user.commercials?.department
           ?.toLowerCase()
           .includes(searchString);
-        return reqIdMatch || nameMatch || employeeMatch;
+        const nextDeptMatch = user.nextDepartment
+          ?.toLowerCase()
+          .includes(searchString);
+
+        // Status filter logic
+        const statusMatch =
+          !statusFilter ||
+          (statusFilter === "Draft" && !user.isCompleted) ||
+          (statusFilter && user.status === statusFilter);
+
+        // Department filter logic (only applies for specific statuses)
+        const departmentMatch =
+          !departmentFilter ||
+          !statusesWithDepartments.includes(statusFilter) ||
+          user.nextDepartment === departmentFilter;
+
+        console.log(`Filtering ${user.reqid}:`, {
+          statusFilter,
+          departmentFilter,
+          userStatus: user.status,
+          userNextDept: user.nextDepartment,
+          statusMatch,
+          departmentMatch,
+        });
+
+        return (
+          (reqIdMatch || nameMatch || employeeMatch || nextDeptMatch) &&
+          statusMatch &&
+          departmentMatch
+        );
       });
 
       const filteredByDate = filtered?.filter((user) => {
@@ -120,11 +188,42 @@ const RoleBasedApprovals = () => {
         return true;
       });
 
+      console.log(
+        `Final filtered results: ${filteredByDate?.length || 0} records`
+      );
       setFilteredUsers(filteredByDate);
     };
 
     filterUsers();
-  }, [searchTerm, users, dateFilters]);
+  }, [searchTerm, users, dateFilters, statusFilter, departmentFilter]);
+
+  // Function to clear all filters
+  const clearFilters = () => {
+    setSearchTerm("");
+    setDateFilters({ fromDate: "", toDate: "" });
+    setStatusFilter("");
+    setDepartmentFilter("");
+    setAvailableDepartments([]);
+    setShowDepartmentOptions(false);
+    setShowFilters(false);
+  };
+
+  // Handler for status filter change
+  const handleStatusFilterChange = (e) => {
+    const newStatus = e.target.value;
+    setStatusFilter(newStatus);
+
+    // Clear department filter when status changes
+    setDepartmentFilter("");
+
+    // Show department options for statuses that support it
+    setShowDepartmentOptions(statusesWithDepartments.includes(newStatus));
+  };
+
+  // Handler for department filter change
+  const handleDepartmentFilterChange = (e) => {
+    setDepartmentFilter(e.target.value);
+  };
 
   // Copy ReqID functionality
   const handleCopyReqId = async (reqId, e) => {
@@ -218,6 +317,13 @@ const RoleBasedApprovals = () => {
       setCurrentPage(page);
       setSelectedUsers([]);
     }
+  };
+
+  const handleViewModeChange = (fetchAll) => {
+    setShowAllData(fetchAll);
+    setCurrentPage(1);
+    // Clear filters when changing view mode
+    clearFilters();
   };
 
   const totalPages = Math.ceil(filteredUsers?.length / itemsPerPage);
@@ -338,7 +444,7 @@ const RoleBasedApprovals = () => {
                 type="text"
                 value={searchTerm}
                 onChange={handleSearchChange}
-                placeholder="Search by ID, name, or employee..."
+                placeholder="Search by ID, name, department, or next department..."
                 className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
               />
             </div>
@@ -350,7 +456,7 @@ const RoleBasedApprovals = () => {
                     ? "bg-primary text-white"
                     : "bg-gray-100 text-gray-700"
                 }`}
-                onClick={() => setShowAllData(false)}
+                onClick={() => handleViewModeChange(false)}
               >
                 Pending
               </button>
@@ -360,7 +466,7 @@ const RoleBasedApprovals = () => {
                     ? "bg-primary text-white"
                     : "bg-gray-100 text-gray-700"
                 }`}
-                onClick={() => setShowAllData(true)}
+                onClick={() => handleViewModeChange(true)}
               >
                 All
               </button>
@@ -370,6 +476,11 @@ const RoleBasedApprovals = () => {
               >
                 <Filter className="h-4 w-4 mr-2" />
                 Filter
+                {showFilters ? (
+                  <ChevronUp className="h-4 w-4 ml-1" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 ml-1" />
+                )}
               </button>
               <button className="inline-flex items-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                 <Download className="h-4 w-4 mr-2" />
@@ -386,218 +497,136 @@ const RoleBasedApprovals = () => {
           </div>
 
           {showFilters && (
-            <div className="mt-4 w-80 p-3 bg-white rounded-lg shadow-sm border border-gray-200 absolute right-8 top-32 z-10">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-xs font-medium text-gray-700">
-                  Date Range
-                </h3>
+            <div className="mt-4 w-full md:w-80 p-4 bg-white rounded-lg shadow-lg border border-gray-200 absolute right-0 md:right-8 z-20">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-gray-800">Filters</h3>
                 <button
-                  onClick={() => {
-                    setDateFilters({ fromDate: "", toDate: "" });
-                    setShowFilters(false);
-                  }}
-                  className="text-xs text-gray-500 hover:text-gray-700 flex items-center"
+                  onClick={() => setShowFilters(false)}
+                  className="text-gray-500 hover:text-gray-700"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="space-y-2">
-                <div>
-                  <label className="text-xs text-gray-600 mb-1 block">
-                    From
-                  </label>
-                  <input
-                    type="date"
-                    name="fromDate"
-                    value={dateFilters.fromDate}
-                    onChange={handleDateFilterChange}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-primary focus:border-primary"
-                  />
+
+              {/* Status Filter */}
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  Status
+                </h4>
+                <select
+                  value={statusFilter}
+                  onChange={handleStatusFilterChange}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Hold">Hold</option>
+                  <option value="Rejected">Rejected</option>
+                  <option value="PO-Pending">PO-Pending</option>
+                  <option value="Invoice-Pending">Invoice-Pending</option>
+                  <option value="Approved">Approved</option>
+                </select>
+              </div>
+
+              {/* Department Filter - only show for certain statuses */}
+              {statusesWithDepartments.includes(statusFilter) &&
+                availableDepartments.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">
+                      Next Department ({statusFilter})
+                    </h4>
+                    <select
+                      value={departmentFilter}
+                      onChange={handleDepartmentFilterChange}
+                      className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                    >
+                      <option value="">All Departments</option>
+                      {availableDepartments.map((dept) => (
+                        <option key={dept} value={dept}>
+                          {dept}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Showing {availableDepartments.length} departments for{" "}
+                      {statusFilter} status
+                    </p>
+                  </div>
+                )}
+
+              {statusesWithDepartments.includes(statusFilter) &&
+                availableDepartments.length === 0 && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">
+                      Next Department ({statusFilter})
+                    </h4>
+                    <div className="px-3 py-2 text-sm text-gray-500 bg-gray-50 rounded-md border">
+                      No departments available for {statusFilter} status
+                    </div>
+                  </div>
+                )}
+
+              {/* Date Range Filters */}
+              <div className="mb-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                  Date Range
+                </h4>
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-xs text-gray-600 mb-1 block">
+                      From
+                    </label>
+                    <input
+                      type="date"
+                      name="fromDate"
+                      value={dateFilters.fromDate}
+                      onChange={handleDateFilterChange}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-600 mb-1 block">
+                      To
+                    </label>
+                    <input
+                      type="date"
+                      name="toDate"
+                      value={dateFilters.toDate}
+                      onChange={handleDateFilterChange}
+                      className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs text-gray-600 mb-1 block">To</label>
-                  <input
-                    type="date"
-                    name="toDate"
-                    value={dateFilters.toDate}
-                    onChange={handleDateFilterChange}
-                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-primary focus:border-primary"
-                  />
-                </div>
+              </div>
+
+              <div className="flex justify-between pt-3 border-t border-gray-200">
+                <button
+                  onClick={() => setShowFilters(false)}
+                  className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 font-medium"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={clearFilters}
+                  className="px-4 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200"
+                >
+                  Clear Filters
+                </button>
               </div>
             </div>
           )}
         </div>
-
-        <div className="border border-gray-200 rounded-lg w-full">
-          <div className="overflow-x-auto">
-            <div className="inline-block min-w-full align-middle">
-              <div className="overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-primary">
-                    <tr>
-                      <th
-                        scope="col"
-                        className="sticky top-0 px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-[5%]"
-                      >
-                        SNo
-                      </th>
-                      <th
-                        scope="col"
-                        className="sticky top-0 px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-[10%]"
-                      >
-                        ReqId
-                      </th>
-                      <th
-                        scope="col"
-                        className="sticky top-0 px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-[15%]"
-                      >
-                        Business Unit
-                      </th>
-                      <th
-                        scope="col"
-                        className="sticky top-0 px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-[15%]"
-                      >
-                        Vendor
-                      </th>
-                      <th
-                        scope="col"
-                        className="sticky top-0 px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-[8%]"
-                      >
-                        Amount
-                      </th>
-                      <th
-                        scope="col"
-                        className="sticky top-0 px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-[10%]"
-                      >
-                        Status
-                      </th>
-                      <th
-                        scope="col"
-                        className="sticky top-0 px-6 py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-[10%]"
-                      >
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {currentUsers.length > 0 ? (
-                      currentUsers.map((user, index) => (
-                        <tr
-                          key={user._id}
-                          className="hover:bg-gray-100 cursor-pointer"
-                          onClick={() =>
-                            navigate(
-                              `/approval-request-list/preview-one-req/${user._id}`
-                            )
-                          }
-                        >
-                          <td className="px-6 py-4 text-sm font-medium text-gray-900">
-                            {startIndex + index + 1}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            <div>
-                              <div className="flex items-center space-x-2">
-                                <span className="block font-medium">
-                                  {user.reqid}
-                                </span>
-                                <div className="flex space-x-1">
-                                  <button
-                                    onClick={(e) =>
-                                      handleCopyReqId(user.reqid, e)
-                                    }
-                                    className="text-gray-400 hover:text-blue-500 transition-colors"
-                                    title="Copy Request ID"
-                                  >
-                                    <Copy className="h-3 w-3 md:h-4 md:w-4" />
-                                  </button>
-                                  <button
-                                    onClick={(e) =>
-                                      handleOpenInNewTab(user._id, e)
-                                    }
-                                    className="text-gray-400 hover:text-green-500 transition-colors"
-                                    title="Open in new tab"
-                                  >
-                                    <ExternalLink className="h-3 w-3 md:h-4 md:w-4" />
-                                  </button>
-                                </div>
-                              </div>
-                              <span className="block font-medium">
-                                {user.userName || "Employee"}
-                              </span>
-                              <span className="block">
-                                {user.commercials?.department}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            <div>
-                              <span className="block font-medium">
-                                {user.commercials?.businessUnit || "NA"}
-                              </span>
-                              <span className="block font-medium">
-                                {user.commercials?.entity || "NA"}
-                              </span>
-                              <span className="block">
-                                {user.commercials?.site || "NA"}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            <div>
-                              <span className="block font-medium">
-                                {user.procurements?.vendor}
-                              </span>
-                              <span className="block">
-                                {user.procurements?.vendorName}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            {formatCurrency(
-                              user.supplies?.totalValue,
-                              user.supplies?.selectedCurrency
-                            )}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-500">
-                            {user.isCompleted ? (
-                              <>
-                                {user.status !== "Approved" && (
-                                  <>
-                                    {user.nextDepartment || user.cDepartment}{" "}
-                                    <br />
-                                    {" : "}
-                                  </>
-                                )}
-                                {user.status || "Pending"}
-                              </>
-                            ) : (
-                              <span className="text-red-500">Draft</span>
-                            )}
-                          </td>
-                          {renderActionColumn(user)}
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan="10"
-                          className="px-6 py-4 text-center text-gray-500"
-                        >
-                          {searchTerm ||
-                          dateFilters.fromDate ||
-                          dateFilters.toDate
-                            ? "No matching results found."
-                            : "No data available."}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
+        <TableContent
+          currentUsers={currentUsers}
+          navigate={navigate}
+          handleCopyReqId={handleCopyReqId}
+          handleOpenInNewTab={handleOpenInNewTab}
+          formatCurrency={formatCurrency}
+          renderActionColumn={renderActionColumn}
+          searchTerm={searchTerm}
+          dateFilters={dateFilters}
+          startIndex ={startIndex }
+        />
 
         {filteredUsers.length > 0 && (
           <Pagination

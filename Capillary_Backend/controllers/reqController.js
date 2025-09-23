@@ -550,8 +550,6 @@ const getStatisticData = async (req, res) => {
         status: { $nin: ["Hold", "Rejected"] }, // Exclude 'Hold' and 'Rejected' statuses
       });
 
-      console.log("pendingApprovalsdata", pendingApprovalsdata);
-
       const data = pendingApprovalsdata.map((req) => {
         const { approvals, firstLevelApproval, status } = req;
         const lastLevelApprovals = approvals[approvals.length - 1];
@@ -1389,7 +1387,6 @@ const getApprovedReqData = async (req, res) => {
         .status(404)
         .json({ message: "User not found or invalid data" });
     }
-    console.log("New consolidated data", consolidatedData);
 
     let reqData = await CreateNewReq.find({
       "firstLevelApproval.hodEmail": consolidatedData.company_email_id,
@@ -1514,13 +1511,13 @@ const checkApprovalStatus = async (role, userId, requestId, email) => {
     };
   }
 };
-
 const getFilteredRequest = async (req, res) => {
   try {
     const { id, action } = req.params;
 
     let consolidatedData;
 
+    // Fetch panel user data
     const panelUserData = await addPanelUsers
       .findOne(
         { employee_id: id },
@@ -1528,8 +1525,7 @@ const getFilteredRequest = async (req, res) => {
       )
       .lean();
 
-    console.log("panelUserData", panelUserData);
-
+    // Fetch employee data if not a panel user
     const employeeData = await empModel
       .findOne(
         { employee_id: id },
@@ -1556,69 +1552,67 @@ const getFilteredRequest = async (req, res) => {
       };
     }
 
-    console.log("consolidatedData", consolidatedData);
-
     if (!consolidatedData || !consolidatedData.company_email_id) {
       return res
         .status(404)
         .json({ message: "User not found or invalid data" });
     }
 
+    // Fetch requests assigned to this user's HOD email
     let reqData = await CreateNewReq.find({
       "firstLevelApproval.hodEmail": consolidatedData.company_email_id,
       isCompleted: true,
     })
       .sort({ createdAt: -1 })
-      .lean(); // Added .lean() for better performance
+      .lean();
 
-    console.log("reqData", reqData, consolidatedData.role);
-
+    // If no matching requests and role is not HOD/Employee, fetch all completed requests
     if (
       reqData.length === 0 &&
       consolidatedData.role !== "HOD Department" &&
       consolidatedData.role !== "Employee"
     ) {
-      console.log("Fetching all requests as no matching records found.");
       reqData = await CreateNewReq.find({ isCompleted: true })
         .sort({ createdAt: -1 })
         .lean();
     }
 
-    // Process reqData to extract department details based on status
+    // Process request data to add currentDepartment and nextDepartment
     const processedReqData = reqData.map((request) => {
       const { approvals, firstLevelApproval } = request;
       const latestLevelApproval = approvals?.[approvals.length - 1];
-      console.log("latestLevelApproval", latestLevelApproval);
-      let departmentInfo = {};
+
+      let nextDepartment = null;
+      let currentDepartment = null;
 
       if (!latestLevelApproval) {
-        if (firstLevelApproval.approved) {
-          departmentInfo.nextDepartment = firstLevelApproval.hodDepartment;
-        } else {
-          departmentInfo.nextDepartment = firstLevelApproval.hodDepartment;
-        }
-
-        return { ...request, ...departmentInfo };
-      }
-
-      if (latestLevelApproval.status === "Approved") {
-        departmentInfo.nextDepartment = latestLevelApproval.nextDepartment;
+        // No approvals yet → first level HOD
+        nextDepartment = firstLevelApproval?.hodDepartment || null;
+        currentDepartment = "Pending HOD Approval";
+      } else if (latestLevelApproval.status === "Approved") {
+        nextDepartment = latestLevelApproval.nextDepartment || null;
+        currentDepartment = latestLevelApproval.departmentName || null;
       } else if (
         latestLevelApproval.status === "Hold" ||
         latestLevelApproval.status === "Rejected"
       ) {
-        departmentInfo.cDepartment = latestLevelApproval.departmentName;
+        nextDepartment = latestLevelApproval.departmentName || null;
+        currentDepartment = latestLevelApproval.departmentName || null;
       }
-      console.log("latestLevelApproval", departmentInfo);
 
-      return { ...request, ...departmentInfo };
+      return {
+        ...request,
+        nextDepartment,
+        currentDepartment,
+      };
     });
 
-    console.log("Processed Request Data", processedReqData);
     res.status(200).json({ reqData: processedReqData });
   } catch (err) {
-    console.error("Error in fetching new notifications", err);
-    res.status(500).json({ message: "Internal Server Error" });
+    console.error("Error in fetching filtered requests", err);
+    res
+      .status(500)
+      .json({ message: "Internal Server Error", error: err.message });
   }
 };
 
@@ -5003,131 +4997,381 @@ const tagMessageToEmployee = async (req, res) => {
     });
   }
 };
+// const getSearchedData = async (req, res) => {
+//   try {
+//     const { data } = req.body;
+//     console.log("Welcome to searched data", data);
+
+//     const { entity, department, status, fromDate, toDate } = data;
+
+//     // Special departments to treat differently
+//     const additionalDepartments = [
+//       "Business Finance",
+//       "Vendor Management",
+//       "Legal Team",
+//       "Info Security",
+//       "Head of Finance",
+//     ];
+
+//     // Build match query
+//     const matchQuery = { isCompleted: true };
+//     if (entity) matchQuery["commercials.entity"] = entity;
+
+//     if (department) {
+//       if (additionalDepartments.includes(department)) {
+//         matchQuery["approvals.departmentName"] = department;
+//       } else {
+//         matchQuery["commercials.department"] = department;
+//       }
+//     }
+
+//     if (status) matchQuery.status = status;
+
+//     if (fromDate && toDate) {
+//       matchQuery.createdAt = {
+//         $gte: new Date(fromDate),
+//         $lte: new Date(toDate),
+//       };
+//     } else if (fromDate) {
+//       matchQuery.createdAt = { $gte: new Date(fromDate) };
+//     } else if (toDate) {
+//       matchQuery.createdAt = { $lte: new Date(toDate) };
+//     }
+
+//     // Debug info
+//     const totalDocs = await CreateNewReq.countDocuments(matchQuery);
+//     const docsWithApprovals = await CreateNewReq.find({
+//       ...matchQuery,
+//       approvals: { $exists: true, $ne: [] },
+//     }).limit(3);
+
+//     console.log("docsWithApprovals", docsWithApprovals);
+
+//     // ----------------------
+//     // NORMAL DEPARTMENTS
+//     // ----------------------
+//     const normalData = await CreateNewReq.aggregate([
+//       { $match: matchQuery },
+//       {
+//         $match: {
+//           "commercials.department": { $nin: additionalDepartments },
+//         },
+//       },
+//       {
+//         $group: {
+//           _id: {
+//             entity: "$commercials.entity",
+//             department: "$commercials.department",
+//             currency: "$supplies.selectedCurrency",
+//           },
+//           totalRequests: { $sum: 1 },
+//           pendingRequests: {
+//             $sum: {
+//               $cond: [
+//                 {
+//                   $in: [
+//                     "$status",
+//                     ["Pending", "Invoice-Pending", "PO-Pending"],
+//                   ],
+//                 },
+//                 1,
+//                 0,
+//               ],
+//             },
+//           },
+//           approvedRequests: {
+//             $sum: { $cond: [{ $eq: ["$status", "Approved"] }, 1, 0] },
+//           },
+//           holdRequests: {
+//             $sum: { $cond: [{ $eq: ["$status", "Hold"] }, 1, 0] },
+//           },
+//           rejectedRequests: {
+//             $sum: { $cond: [{ $eq: ["$status", "Rejected"] }, 1, 0] },
+//           },
+//           totalFund: { $sum: "$supplies.totalValue" },
+//           pendingFund: {
+//             $sum: {
+//               $cond: [
+//                 {
+//                   $in: [
+//                     "$status",
+//                     ["Pending", "Invoice-Pending", "PO-Pending"],
+//                   ],
+//                 },
+//                 "$supplies.totalValue",
+//                 0,
+//               ],
+//             },
+//           },
+//           approvedFund: {
+//             $sum: {
+//               $cond: [
+//                 { $eq: ["$status", "Approved"] },
+//                 "$supplies.totalValue",
+//                 0,
+//               ],
+//             },
+//           },
+//           holdFund: {
+//             $sum: {
+//               $cond: [{ $eq: ["$status", "Hold"] }, "$supplies.totalValue", 0],
+//             },
+//           },
+//           rejectedFund: {
+//             $sum: {
+//               $cond: [
+//                 { $eq: ["$status", "Rejected"] },
+//                 "$supplies.totalValue",
+//                 0,
+//               ],
+//             },
+//           },
+//         },
+//       },
+//     ]);
+
+//     // ----------------------
+//     // SPECIAL DEPARTMENTS (Sequential Approval Logic)
+//     // ----------------------
+//     const specialRequests = await CreateNewReq.find({isCompleted:true,
+//       approvals: { $exists: true, $ne: [] },
+//     });
+
+//     const specialData = [];
+
+//     specialRequests.forEach((req) => {
+//       const approvals = req.approvals.filter((a) =>
+//         additionalDepartments.includes(a.departmentName)
+//       );
+
+//       let canCount = true; // stop counting if Hold/Rejected encountered
+
+//       approvals.forEach((a) => {
+//         if (!canCount) return;
+
+//         // 🔑 Ensure only the requested special department is counted
+//         if (department && a.departmentName !== department) return;
+
+//         let totalRequests = 1;
+//         let pendingRequests = 0,
+//           approvedRequests = 0,
+//           holdRequests = 0,
+//           rejectedRequests = 0;
+
+//         if (
+//           ["Pending", "Invoice-Pending", "PO-Pending", null].includes(a.status)
+//         )
+//           pendingRequests = 1;
+//         if (a.status === "Approved") approvedRequests = 1;
+//         if (a.status === "Hold") holdRequests = 1;
+//         if (a.status === "Rejected") rejectedRequests = 1;
+
+//         if (["Hold", "Rejected"].includes(a.status)) canCount = false;
+
+//         // specialData.push({
+//         //   _id: {
+//         //     entity: req.commercials.entity,
+//         //     requestDepartment: req.commercials.department,
+//         //     department: a.departmentName,
+//         //     currency: req.supplies.selectedCurrency,
+//         //   },
+//         //   totalRequests,
+//         //   pendingRequests,
+//         //   approvedRequests,
+//         //   holdRequests,
+//         //   rejectedRequests,
+//         //   totalFund: req.supplies.totalValue,
+//         //   pendingFund: pendingRequests ? req.supplies.totalValue : 0,
+//         //   approvedFund: approvedRequests ? req.supplies.totalValue : 0,
+//         //   holdFund: holdRequests ? req.supplies.totalValue : 0,
+//         //   rejectedFund: rejectedRequests ? req.supplies.totalValue : 0,
+//         // });
+//       });
+//     });
+
+//     // ----------------------
+//     // MERGE NORMAL + SPECIAL
+//     // ----------------------
+//     let reqData = [...normalData, ...specialData];
+
+//     // Optional: Final filter safeguard
+//     if (department) {
+//       reqData = reqData.filter(
+//         (item) =>
+//           item._id.department === department ||
+//           item._id.requestDepartment === department
+//       );
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       data: reqData,
+//       debug: {
+//         totalDocs,
+//         docsWithApprovals: docsWithApprovals.length,
+//       },
+//       message: "Filtered data by department",
+//     });
+//   } catch (err) {
+//     console.log("Error in getting the data", err);
+//     res.status(500).json({
+//       success: false,
+//       message: "Internal Server Error",
+//       error: err.message,
+//     });
+//   }
+// };
 
 const getSearchedData = async (req, res) => {
   try {
     const { data } = req.body;
-    console.log("Welcome to searched data", data);
+    console.log("from data", data);
+    const { entity, department, fromDate, toDate, role } = data;
 
-    const { entity, department, status, fromDate, toDate } = data;
 
-    // Build the dynamic match query (only include fields that are passed)
+
+    const deptRoleLower = (department || role).trim().toLowerCase();
+
+    // ---------- Build match query ----------
     const matchQuery = { isCompleted: true };
-
     if (entity) matchQuery["commercials.entity"] = entity;
-    if (department) matchQuery["commercials.department"] = department;
-    if (status) matchQuery.status = status;
 
-    if (fromDate && toDate) {
-      matchQuery.createdAt = {
-        $gte: new Date(fromDate),
-        $lte: new Date(toDate),
-      };
-    } else if (fromDate) {
-      matchQuery.createdAt = { $gte: new Date(fromDate) };
-    } else if (toDate) {
-      matchQuery.createdAt = { $lte: new Date(toDate) };
+    if (fromDate || toDate) {
+      matchQuery.createdAt = {};
+      if (fromDate)
+        matchQuery.createdAt.$gte = new Date(`${fromDate}T00:00:00.000Z`);
+      if (toDate)
+        matchQuery.createdAt.$lte = new Date(`${toDate}T23:59:59.999Z`);
     }
 
-    // Fetch the data using aggregation
-    const reqData = await CreateNewReq.aggregate([
-      { $match: matchQuery }, // Apply dynamic filters
-      {
-        $group: {
-          _id: {
-            entity: "$commercials.entity",
-            department: "$commercials.department",
-            currency: "$supplies.selectedCurrency",
-          },
-          totalRequests: { $sum: 1 },
-          pendingRequests: {
-            $sum: {
-              $cond: [
-                {
-                  $in: [
-                    "$status",
-                    ["Pending", "Invoice-Pending", "PO-Pending"],
-                  ],
-                },
-                1,
-                0,
-              ],
-            },
-          },
-          approvedRequest: {
-            $sum: { $cond: [{ $eq: ["$status", "Approved"] }, 1, 0] },
-          },
-          holdRequests: {
-            $sum: { $cond: [{ $eq: ["$status", "Hold"] }, 1, 0] },
-          },
-          rejectedRequests: {
-            $sum: { $cond: [{ $eq: ["$status", "Rejected"] }, 1, 0] },
-          },
-          totalFund: { $sum: "$supplies.totalValue" },
-          pendingFund: {
-            $sum: {
-              $cond: [
-                {
-                  $in: [
-                    "$status",
-                    ["Pending", "Invoice-Pending", "PO-Pending"],
-                  ],
-                },
-                "$supplies.totalValue",
-                0,
-              ],
-            },
-          },
-          rejectedFund: {
-            $sum: {
-              $cond: [
-                { $eq: ["$status", "Rejected"] },
-                "$supplies.totalValue",
-                0,
-              ],
-            },
-          },
-          approvedFund: {
-            $sum: {
-              $cond: [
-                { $eq: ["$status", "Approved"] },
-                "$supplies.totalValue",
-                0,
-              ],
-            },
-          },
-          holdFund: {
-            $sum: {
-              $cond: [{ $eq: ["$status", "Hold"] }, "$supplies.totalValue", 0],
-            },
-          },
-        },
-      },
-      { $sort: { "_id.entity": 1, "_id.department": 1, "_id.currency": 1 } },
-      {
-        $project: {
-          _id: 0,
-          entity: "$_id.entity",
-          department: "$_id.department",
-          currency: "$_id.currency",
-          totalRequests: 1,
-          pendingRequests: 1,
-          holdRequests: 1,
-          rejectedRequests: 1,
-          totalFund: 1,
-          pendingFund: 1,
-          rejectedFund: 1,
-          approvedFund: 1,
-          holdFund: 1,
-        },
-      },
-    ]);
+    const allRequests = await CreateNewReq.find(matchQuery).lean();
+    const counts = {};
 
-    console.log("Aggregated Data:", reqData);
-    res.status(200).json({ success: true, data: reqData });
+    allRequests.forEach((req) => {
+      const approvals = req.approvals || [];
+      const firstApproval = req.firstLevelApproval || {};
+      const key = `${req.commercials.entity}-${department || role}-${
+        req.supplies.selectedCurrency
+      }`;
+
+      // Initialize counts
+      if (!counts[key]) {
+        counts[key] = {
+          _id: {
+            entity: req.commercials.entity,
+            department: department || role,
+            currency: req.supplies.selectedCurrency,
+          },
+          totalRequests: 0,
+          pendingRequests: 0,
+          approvedRequests: 0,
+          holdRequests: 0,
+          rejectedRequests: 0,
+          totalFund: 0,
+          pendingFund: 0,
+          approvedFund: 0,
+          holdFund: 0,
+          rejectedFund: 0,
+        };
+      }
+
+      let countedThisRequest = false;
+
+      // ---------- Department-level (firstLevelApproval) ----------
+      if (firstApproval.hodDepartment) {
+        const deptLower = firstApproval.hodDepartment.trim().toLowerCase();
+        if (deptLower === deptRoleLower) {
+          counts[key].totalRequests += 1;
+          counts[key].totalFund += req.supplies.totalValue;
+
+          if (firstApproval.status === "Approved") {
+            counts[key].approvedRequests += 1;
+            counts[key].approvedFund += req.supplies.totalValue;
+          } else if (firstApproval.status === "Rejected") {
+            counts[key].rejectedRequests += 1;
+            counts[key].rejectedFund += req.supplies.totalValue;
+          } else {
+            counts[key].pendingRequests += 1;
+            counts[key].pendingFund += req.supplies.totalValue;
+          }
+          countedThisRequest = true;
+        }
+      }
+
+      // ---------- Role-level (approvals array) ----------
+      approvals.forEach((a, idx) => {
+        const nextDept = a.nextDepartment
+          ? a.nextDepartment.trim().toLowerCase()
+          : null;
+        const deptName = a.departmentName
+          ? a.departmentName.trim().toLowerCase()
+          : null;
+
+        // Skip PO-Pending / Invoice-Pending
+        if (["po-pending", "invoice-pending"].includes(nextDept)) return;
+
+        const nextApproval = approvals[idx + 1];
+
+        // Approved → nextDepartment matches role and next approval status is Approved
+        if (
+          nextDept === deptRoleLower &&
+          nextApproval &&
+          nextApproval.status === "Approved"
+        ) {
+          counts[key].totalRequests += 1;
+          counts[key].approvedRequests += 1;
+          counts[key].totalFund += req.supplies.totalValue;
+          counts[key].approvedFund += req.supplies.totalValue;
+          countedThisRequest = true;
+        }
+
+        // Hold / Rejected → departmentName matches role
+        if (deptName === deptRoleLower && a.status === "Hold") {
+          counts[key].totalRequests += 1;
+          counts[key].holdRequests += 1;
+          counts[key].totalFund += req.supplies.totalValue;
+          counts[key].holdFund += req.supplies.totalValue;
+          countedThisRequest = true;
+        }
+
+        if (deptName === deptRoleLower && a.status === "Rejected") {
+          counts[key].totalRequests += 1;
+          counts[key].rejectedRequests += 1;
+          counts[key].totalFund += req.supplies.totalValue;
+          counts[key].rejectedFund += req.supplies.totalValue;
+          countedThisRequest = true;
+        }
+      });
+
+      // ---------- Pending → if not counted yet, last approval points to this department/role ----------
+      const lastApproval = approvals[approvals.length - 1];
+      const lastNextDept =
+        lastApproval && lastApproval.nextDepartment
+          ? lastApproval.nextDepartment.trim().toLowerCase()
+          : null;
+      if (!countedThisRequest && lastNextDept === deptRoleLower) {
+        counts[key].totalRequests += 1;
+        counts[key].pendingRequests += 1;
+        counts[key].totalFund += req.supplies.totalValue;
+        counts[key].pendingFund += req.supplies.totalValue;
+      }
+    });
+
+    const result = Object.values(counts);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      message:
+        "Filtered report by department/role including Pending, Approved, Hold, Rejected",
+    });
   } catch (err) {
-    console.log("Error in getting the data", err);
-    res.status(500).json({ success: false, message: "Internal Server Error" });
+    console.error("Error generating report", err);
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+      error: err.message,
+    });
   }
 };
 
@@ -5141,23 +5385,13 @@ const getAllFilteredRequest = async (req, res) => {
 
     let query = {};
 
-    if (userId) {
-      query.userId = userId;
-    }
-
-    if (status && status !== "All") {
-      query.status = status;
-    }
-
-    if (department && department !== "All") {
+    if (userId) query.userId = userId;
+    if (status && status !== "All") query.status = status;
+    if (department && department !== "All")
       query["commercials.department"] = department;
-    }
 
     if (fromDate && toDate) {
-      query.createdAt = {
-        $gte: new Date(fromDate),
-        $lte: new Date(toDate),
-      };
+      query.createdAt = { $gte: new Date(fromDate), $lte: new Date(toDate) };
     } else if (fromDate) {
       query.createdAt = { $gte: new Date(fromDate) };
     } else if (toDate) {
@@ -5166,12 +5400,47 @@ const getAllFilteredRequest = async (req, res) => {
 
     console.log("Mongo Query:", query);
 
+    // Fetch filtered requests
     const reqData = await CreateNewReq.find(query).sort({ createdAt: -1 });
+
+    // Process approvals to determine currentDepartment & nextDepartment
+    const processedReqData = reqData.map((request) => {
+      const { approvals, firstLevelApproval } = request;
+
+      let currentDepartment = null;
+      let nextDepartment = null;
+
+      if (!approvals || approvals.length === 0) {
+        currentDepartment = "Pending HOD Approval";
+        nextDepartment = firstLevelApproval?.hodDepartment || null;
+      } else {
+        const latestApproval = approvals[approvals.length - 1];
+        currentDepartment =
+          latestApproval.departmentName || "Unknown Department";
+
+        if (latestApproval.status === "Approved") {
+          nextDepartment = latestApproval.nextDepartment || "End of Approval";
+        } else if (
+          latestApproval.status === "Hold" ||
+          latestApproval.status === "Rejected"
+        ) {
+          nextDepartment = latestApproval.departmentName; // stuck at current
+        } else {
+          nextDepartment = latestApproval.nextDepartment || null;
+        }
+      }
+
+      return {
+        ...request.toObject(), // convert Mongoose doc to plain object
+        currentDepartment,
+        nextDepartment,
+      };
+    });
 
     return res.status(200).json({
       success: true,
-      total: reqData.length,
-      data: reqData,
+      total: processedReqData.length,
+      data: processedReqData,
     });
   } catch (err) {
     console.log("Error in filtering requests", err);
@@ -5181,23 +5450,6 @@ const getAllFilteredRequest = async (req, res) => {
     });
   }
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 module.exports = {
   getAllFilteredRequest,

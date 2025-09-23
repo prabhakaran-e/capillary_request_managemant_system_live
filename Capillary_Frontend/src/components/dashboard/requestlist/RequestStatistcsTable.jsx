@@ -10,6 +10,8 @@ import {
     Copy,
     ExternalLink,
     Check,
+    ChevronDown,
+    ChevronUp,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -25,6 +27,8 @@ import LoadingSpinner from "../../spinner/LoadingSpinner";
 import Pagination from "./Pagination";
 import * as XLSX from "xlsx";
 import { exportAllRequestsToExcel } from "../../../utils/reqExportExel";
+import RequestStaticsListTableContent from "./RequestStaticsListTableContent";
+import BulkApprovalContent from "./BulkApprovalContent";
 
 const RequestStatistcsTable = () => {
     let { action, fromDate, toDate } = useParams();
@@ -38,6 +42,9 @@ const RequestStatistcsTable = () => {
     const [newStatus, setNewStatus] = useState("");
     const [showAllData, setShowAllData] = useState(false);
     const [statusFilter, setStatusFilter] = useState("");
+    const [departmentFilter, setDepartmentFilter] = useState("");
+    const [availableDepartments, setAvailableDepartments] = useState([]);
+    const [showDepartmentOptions, setShowDepartmentOptions] = useState(false);
 
     // Bulk approval states
     const [selectedRequests, setSelectedRequests] = useState([]);
@@ -62,10 +69,45 @@ const RequestStatistcsTable = () => {
     const [copiedReqId, setCopiedReqId] = useState(null);
 
     const itemsPerPage = 20;
+    const statusesWithDepartments = ["Pending", "Rejected", "Hold"];
 
     // Check if bulk approval functionality should be shown
     const showBulkApproval =
         role === "Business Finance" && action === "Pending-Approvals";
+
+    // Function to extract unique departments from data based on status
+    const getAvailableDepartmentsForStatus = (status, data) => {
+        if (!statusesWithDepartments.includes(status)) {
+            return [];
+        }
+
+        const filteredData = data.filter((item) => item.status === status);
+        const departments = filteredData
+            .map((item) => item.nextDepartment)
+            .filter((dept) => dept && dept.trim() !== "") // Filter out null, undefined, or empty strings
+            .filter((dept, index, arr) => arr.indexOf(dept) === index) // Remove duplicates
+            .sort(); // Sort alphabetically
+
+        return departments;
+    };
+
+    // Update available departments when status changes or data changes
+    useEffect(() => {
+        if (statusFilter && statusesWithDepartments.includes(statusFilter)) {
+            const departments = getAvailableDepartmentsForStatus(
+                statusFilter,
+                users
+            );
+            setAvailableDepartments(departments);
+
+            // If current department filter is not available in new list, clear it
+            if (departmentFilter && !departments.includes(departmentFilter)) {
+                setDepartmentFilter("");
+            }
+        } else {
+            setAvailableDepartments([]);
+        }
+    }, [statusFilter, users, departmentFilter]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -160,7 +202,18 @@ const RequestStatistcsTable = () => {
     }, [users, filteredUsers, currentPage]);
 
     const handleStatusFilterChange = (e) => {
-        setStatusFilter(e.target.value);
+        const newStatus = e.target.value;
+        setStatusFilter(newStatus);
+
+        // Clear department filter when status changes
+        setDepartmentFilter("");
+
+        // Show department options for statuses that support it
+        setShowDepartmentOptions(statusesWithDepartments.includes(newStatus));
+    };
+
+    const handleDepartmentFilterChange = (e) => {
+        setDepartmentFilter(e.target.value);
     };
 
     const fetchReqTable = async (showAll = false) => {
@@ -403,6 +456,7 @@ const RequestStatistcsTable = () => {
     useEffect(() => {
         fetchReqTable(showAllData);
     }, [userId, role, action, filterAction, email, department, showAllData]);
+
     useEffect(() => {
         let filtered = [...users];
 
@@ -486,6 +540,25 @@ const RequestStatistcsTable = () => {
             });
         }
 
+        // Apply department filter (only for specific statuses)
+        if (
+            departmentFilter &&
+            statusesWithDepartments.includes(statusFilter)
+        ) {
+            filtered = filtered.filter((user) => {
+                const matches = user.nextDepartment === departmentFilter;
+                console.log(
+                    `Request ${user.reqid}: nextDepartment="${user.nextDepartment}", matches departmentFilter="${departmentFilter}": ${matches}`
+                );
+                return matches;
+            });
+            console.log(
+                `After department filter (${departmentFilter}):`,
+                filtered.length,
+                "records"
+            );
+        }
+
         // Apply search term filter
         if (searchTerm.trim() !== "") {
             const term = searchTerm.toLowerCase();
@@ -532,6 +605,11 @@ const RequestStatistcsTable = () => {
                     return true;
                 if (user.status && user.status.toLowerCase().includes(term))
                     return true;
+                if (
+                    user.nextDepartment &&
+                    user.nextDepartment.toLowerCase().includes(term)
+                )
+                    return true;
 
                 if (safeCheck(user.commercials, "")) return true;
                 if (safeCheck(user.procurements, "")) return true;
@@ -550,9 +628,18 @@ const RequestStatistcsTable = () => {
             });
         }
 
+        console.log(`Final filtered results: ${filtered.length} records`);
         setFilteredUsers(filtered);
         setCurrentPage(1);
-    }, [users, searchTerm, dateFilters, statusFilter, fromDate, toDate]);
+    }, [
+        users,
+        searchTerm,
+        dateFilters,
+        statusFilter,
+        departmentFilter,
+        fromDate,
+        toDate,
+    ]);
 
     // Copy ReqID functionality
     const handleCopyReqId = async (reqId, e) => {
@@ -648,7 +735,10 @@ const RequestStatistcsTable = () => {
             toDate: "",
         });
         setSearchTerm("");
-        setStatusFilter(""); // Add status filter reset
+        setStatusFilter("");
+        setDepartmentFilter("");
+        setAvailableDepartments([]);
+        setShowDepartmentOptions(false);
         setShowFilters(false);
     };
 
@@ -782,36 +872,12 @@ const RequestStatistcsTable = () => {
 
                     {/* Bulk Approval Controls - Show only for Business finance role with Pending-Approvals action */}
                     {showBulkApproval && (
-                        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-4">
-                                    <span className="text-sm font-medium text-blue-900">
-                                        Bulk Actions:
-                                    </span>
-                                    <span className="text-sm text-blue-700">
-                                        {selectedRequests.length} of{" "}
-                                        {currentUsers.length} selected
-                                    </span>
-                                </div>
-                                <button
-                                    onClick={handleBulkApproval}
-                                    disabled={
-                                        selectedRequests.length === 0 ||
-                                        isBulkApproving
-                                    }
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                                        selectedRequests.length > 0 &&
-                                        !isBulkApproving
-                                            ? "bg-green-600 text-white hover:bg-green-700"
-                                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                    }`}
-                                >
-                                    {isBulkApproving
-                                        ? "Approving..."
-                                        : "Bulk Approve"}
-                                </button>
-                            </div>
-                        </div>
+                        <BulkApprovalContent
+                            selectedRequests={selectedRequests}
+                            handleBulkApproval={handleBulkApproval}
+                            currentUsers={currentUsers}
+                            isBulkApproving={isBulkApproving}
+                        />
                     )}
 
                     <div className="block lg:hidden mb-4">
@@ -871,7 +937,7 @@ const RequestStatistcsTable = () => {
                                 type="text"
                                 value={searchTerm}
                                 onChange={handleSearchChange}
-                                placeholder="Search by ID, name, or department..."
+                                placeholder="Search by ID, name, department, or next department..."
                                 className="w-full pl-10 pr-4 py-2 md:py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                             />
                         </div>
@@ -903,6 +969,11 @@ const RequestStatistcsTable = () => {
                             >
                                 <Filter className="h-4 w-4 mr-2" />
                                 Filter
+                                {showFilters ? (
+                                    <ChevronUp className="h-4 w-4 ml-1" />
+                                ) : (
+                                    <ChevronDown className="h-4 w-4 ml-1" />
+                                )}
                             </button>
                             <button
                                 className="inline-flex items-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
@@ -924,22 +995,96 @@ const RequestStatistcsTable = () => {
                     </div>
 
                     {showFilters && (
-                        <div className="mt-4 w-full md:w-80 p-3 bg-white rounded-lg shadow-sm border border-gray-200 absolute right-0 md:right-8 z-10">
-                            <div className="flex items-center justify-between mb-2">
-                                <h3 className="text-xs font-medium text-gray-700">
+                        <div className="mt-4 w-full md:w-80 p-4 bg-white rounded-lg shadow-lg border border-gray-200 absolute right-0 md:right-8 z-20">
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-sm font-semibold text-gray-800">
                                     Filters
                                 </h3>
                                 <button
-                                    onClick={clearFilters}
-                                    className="text-xs text-gray-500 hover:text-gray-700 flex items-center"
+                                    onClick={() => setShowFilters(false)}
+                                    className="text-gray-500 hover:text-gray-700"
                                 >
-                                    <X className="h-3 w-3" />
+                                    <X className="h-4 w-4" />
                                 </button>
                             </div>
 
+                            {/* Status Filter */}
+                            <div className="mb-4">
+                                <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                    Status
+                                </h4>
+                                <select
+                                    value={statusFilter}
+                                    onChange={handleStatusFilterChange}
+                                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                                >
+                                    <option value="">All Statuses</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="Hold">Hold</option>
+                                    <option value="Rejected">Rejected</option>
+                                    <option value="PO-Pending">
+                                        PO-Pending
+                                    </option>
+                                    <option value="Invoice-Pending">
+                                        Invoice-Pending
+                                    </option>
+                                    <option value="Approved">Approved</option>
+                                </select>
+                            </div>
+
+                            {/* Department Filter - only show for certain statuses */}
+                            {statusesWithDepartments.includes(statusFilter) &&
+                                availableDepartments.length > 0 && (
+                                    <div className="mb-4">
+                                        <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                            Next Department ({statusFilter})
+                                        </h4>
+                                        <select
+                                            value={departmentFilter}
+                                            onChange={
+                                                handleDepartmentFilterChange
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                                        >
+                                            <option value="">
+                                                All Departments
+                                            </option>
+                                            {availableDepartments.map(
+                                                (dept) => (
+                                                    <option
+                                                        key={dept}
+                                                        value={dept}
+                                                    >
+                                                        {dept}
+                                                    </option>
+                                                )
+                                            )}
+                                        </select>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Showing{" "}
+                                            {availableDepartments.length}{" "}
+                                            departments for {statusFilter}{" "}
+                                            status
+                                        </p>
+                                    </div>
+                                )}
+
+                            {statusesWithDepartments.includes(statusFilter) &&
+                                availableDepartments.length === 0 && (
+                                    <div className="mb-4">
+                                        <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                            Next Department ({statusFilter})
+                                        </h4>
+                                        <div className="px-3 py-2 text-sm text-gray-500 bg-gray-50 rounded-md border">
+                                            No departments available for{" "}
+                                            {statusFilter} status
+                                        </div>
+                                    </div>
+                                )}
+
                             {/* Date Range Filters */}
-                            <div className="mb-3">
-                                <h4 className="text-xs font-medium text-gray-700 mb-2">
+                            <div className="mb-4">
+                                <h4 className="text-sm font-medium text-gray-700 mb-2">
                                     Date Range
                                 </h4>
                                 <div className="space-y-2">
@@ -952,7 +1097,7 @@ const RequestStatistcsTable = () => {
                                             name="fromDate"
                                             value={dateFilters.fromDate}
                                             onChange={handleDateFilterChange}
-                                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-primary focus:border-primary"
+                                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
                                         />
                                     </div>
                                     <div>
@@ -964,375 +1109,61 @@ const RequestStatistcsTable = () => {
                                             name="toDate"
                                             value={dateFilters.toDate}
                                             onChange={handleDateFilterChange}
-                                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-primary focus:border-primary"
+                                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
                                         />
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Status Filter */}
-                            <div>
-                                <h4 className="text-xs font-medium text-gray-700 mb-2">
-                                    Status
-                                </h4>
-                                <select
-                                    value={statusFilter}
-                                    onChange={handleStatusFilterChange}
-                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-primary focus:border-primary"
+                            <div className="flex justify-between pt-3 border-t border-gray-200">
+                                <button
+                                    onClick={() => setShowFilters(false)}
+                                    className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800 font-medium"
                                 >
-                                    <option value="">All Statuses</option>
-                                    <option value="Pending">Pending</option>
-                                    <option value="Hold">Hold</option>
-                                    <option value="Rejected">Rejected</option>
-
-                                    <option value="Approved">Approved</option>
-                                </select>
+                                    Close
+                                </button>
+                                <button
+                                    onClick={clearFilters}
+                                    className="px-4 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-200"
+                                >
+                                    Clear Filters
+                                </button>
                             </div>
                         </div>
                     )}
                 </div>
-                <div className="border border-gray-200 rounded-lg w-full">
-                    <div className="overflow-x-auto">
-                        <div className="inline-block min-w-full align-middle">
-                            <div className="overflow-hidden">
-                                <table className="min-w-full divide-y divide-gray-200">
-                                    <thead className="bg-primary">
-                                        <tr>
-                                            {/* Checkbox column for bulk approval - only show for Business finance role with Pending-Approvals */}
-                                            {showBulkApproval && (
-                                                <th
-                                                    scope="col"
-                                                    className="sticky top-0 px-2 py-2 md:px-6 md:py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-[5%]"
-                                                >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectAll}
-                                                        onChange={(e) =>
-                                                            handleSelectAll(
-                                                                e.target.checked
-                                                            )
-                                                        }
-                                                        className="rounded border-gray-300 text-primary focus:ring-primary focus:ring-offset-0"
-                                                    />
-                                                </th>
-                                            )}
-                                            <th
-                                                scope="col"
-                                                className="sticky top-0 px-2 py-2 md:px-6 md:py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-[5%]"
-                                            >
-                                                SNo
-                                            </th>
-                                            <th
-                                                scope="col"
-                                                className="sticky top-0 px-2 py-2 md:px-6 md:py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-[15%]"
-                                            >
-                                                ReqId
-                                            </th>
-
-                                            <th
-                                                scope="col"
-                                                className="sticky top-0 px-2 py-2 md:px-6 md:py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-[15%] hidden md:table-cell"
-                                            >
-                                                Entity
-                                            </th>
-                                            <th
-                                                scope="col"
-                                                className="sticky top-0 px-2 py-2 md:px-6 md:py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-[15%] hidden md:table-cell"
-                                            >
-                                                Vendor
-                                            </th>
-                                            <th
-                                                scope="col"
-                                                className="sticky top-0 px-2 py-2 md:px-6 md:py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-[9%]"
-                                            >
-                                                Amount
-                                            </th>
-
-                                            <th
-                                                scope="col"
-                                                className="sticky top-0 px-2 py-2 md:px-6 md:py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-[13%]"
-                                            >
-                                                Status
-                                            </th>
-
-                                            <th
-                                                scope="col"
-                                                className="sticky top-0 px-2 py-2 md:px-6 md:py-4 text-left text-xs font-medium text-white uppercase tracking-wider w-[10%]"
-                                            >
-                                                Actions
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="bg-white divide-y divide-gray-200">
-                                        {currentUsers.length > 0 ? (
-                                            currentUsers.map((user, index) => (
-                                                <tr
-                                                    key={user._id}
-                                                    className="hover:bg-gray-100 cursor-pointer"
-                                                    onClick={() =>
-                                                        navigate(
-                                                            `/req-list-table/preview-one-req/${user._id}`
-                                                        )
-                                                    }
-                                                >
-                                                    {/* Checkbox column for bulk approval */}
-                                                    {showBulkApproval && (
-                                                        <td className="px-2 py-2 md:px-6 md:py-4">
-                                                            <div
-                                                                onClick={(
-                                                                    e
-                                                                ) => {
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    const checkbox =
-                                                                        e.target.querySelector(
-                                                                            'input[type="checkbox"]'
-                                                                        ) ||
-                                                                        e.target;
-                                                                    if (
-                                                                        checkbox.type ===
-                                                                        "checkbox"
-                                                                    ) {
-                                                                        handleRequestSelect(
-                                                                            user._id,
-                                                                            !selectedRequests.includes(
-                                                                                user._id
-                                                                            )
-                                                                        );
-                                                                    }
-                                                                }}
-                                                                className="flex items-center justify-center cursor-pointer"
-                                                            >
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={selectedRequests.includes(
-                                                                        user._id
-                                                                    )}
-                                                                    onChange={() => {}} // Empty onChange to avoid React warnings
-                                                                    className="rounded border-gray-300 text-primary focus:ring-primary focus:ring-offset-0 pointer-events-none"
-                                                                />
-                                                            </div>
-                                                        </td>
-                                                    )}
-                                                    <td className="px-2 py-2 md:px-6 md:py-4 text-xs md:text-sm font-medium text-gray-900">
-                                                        {(currentPage - 1) *
-                                                            itemsPerPage +
-                                                            index +
-                                                            1}
-                                                    </td>
-
-                                                    <td className="px-2 py-2 md:px-6 md:py-4 text-xs md:text-sm text-gray-500">
-                                                        <div>
-                                                            <div className="flex items-center space-x-2">
-                                                                <span className="block font-medium">
-                                                                    {user.reqid}
-                                                                </span>
-                                                                <div className="flex space-x-1">
-                                                                    <button
-                                                                        onClick={(
-                                                                            e
-                                                                        ) =>
-                                                                            handleCopyReqId(
-                                                                                user.reqid,
-                                                                                e
-                                                                            )
-                                                                        }
-                                                                        className="text-gray-400 hover:text-blue-500 transition-colors"
-                                                                        title="Copy Request ID"
-                                                                    >
-                                                                        <Copy className="h-3 w-3 md:h-4 md:w-4" />
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={(
-                                                                            e
-                                                                        ) =>
-                                                                            handleOpenInNewTab(
-                                                                                user._id,
-                                                                                e
-                                                                            )
-                                                                        }
-                                                                        className="text-gray-400 hover:text-green-500 transition-colors"
-                                                                        title="Open in new tab"
-                                                                    >
-                                                                        <ExternalLink className="h-3 w-3 md:h-4 md:w-4" />
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                            <span className="block font-medium">
-                                                                {user.userName ||
-                                                                    "Employee"}
-                                                            </span>
-                                                            <span className="block text-xs md:text-sm">
-                                                                {
-                                                                    user
-                                                                        .commercials
-                                                                        ?.department
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    </td>
-
-                                                    <td className="px-2 py-2 md:px-6 md:py-4 text-xs md:text-sm text-gray-500 hidden md:table-cell">
-                                                        <div>
-                                                            <span className="block">
-                                                                {user
-                                                                    .commercials
-                                                                    ?.businessUnit ||
-                                                                    "NA"}
-                                                            </span>
-                                                            <span className="block font-medium">
-                                                                {user
-                                                                    .commercials
-                                                                    ?.entity ||
-                                                                    "NA"}
-                                                            </span>
-                                                            <span className="block">
-                                                                {user
-                                                                    .commercials
-                                                                    ?.site ||
-                                                                    "NA"}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-
-                                                    <td className="px-2 py-2 md:px-6 md:py-4 text-xs md:text-sm text-gray-500 hidden md:table-cell">
-                                                        <div>
-                                                            <span className="block font-medium">
-                                                                {
-                                                                    user
-                                                                        .procurements
-                                                                        ?.vendor
-                                                                }
-                                                            </span>
-                                                            <span className="block">
-                                                                {
-                                                                    user
-                                                                        .procurements
-                                                                        ?.vendorName
-                                                                }
-                                                            </span>
-                                                        </div>
-                                                    </td>
-
-                                                    <td className="px-2 py-2 md:px-6 md:py-4 text-xs md:text-sm text-gray-500">
-                                                        {formatCurrency(
-                                                            user.supplies
-                                                                ?.totalValue,
-                                                            user.supplies
-                                                                ?.selectedCurrency
-                                                        )}
-                                                    </td>
-
-                                                    <td className="px-2 py-2 md:px-6 md:py-4 text-xs md:text-sm text-gray-500">
-                                                        {user.isCompleted ? (
-                                                            <>
-                                                                {user.status !==
-                                                                    "Approved" && (
-                                                                    <>
-                                                                        {
-                                                                            user.nextDepartment
-                                                                        }{" "}
-                                                                        <br />
-                                                                    </>
-                                                                )}
-                                                                {user.status ||
-                                                                    "Pending"}
-                                                            </>
-                                                        ) : (
-                                                            <span className="text-red-500">
-                                                                Draft
-                                                            </span>
-                                                        )}
-                                                    </td>
-
-                                                    {renderActionColumn(user)}
-                                                </tr>
-                                            ))
-                                        ) : (
-                                            <tr>
-                                                <td
-                                                    colSpan={
-                                                        showBulkApproval
-                                                            ? "14"
-                                                            : "13"
-                                                    }
-                                                    className="px-2 py-2 md:px-6 md:py-4 text-center text-xs md:text-sm text-gray-500"
-                                                >
-                                                    No matching results found.
-                                                </td>
-                                            </tr>
-                                        )}
-                                    </tbody>
-                                </table>
-                                <div className="mt-4 px-2 md:px-0">
-                                    <Pagination
-                                        currentPage={currentPage}
-                                        totalPages={totalPages}
-                                        handlePageChange={handlePageChange}
-                                        itemsPerPage={itemsPerPage}
-                                        totalItems={filteredUsers.length}
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <RequestStaticsListTableContent
+                    showBulkApproval={showBulkApproval}
+                    handleSelectAll={handleSelectAll}
+                    selectAll={selectAll}
+                    currentUsers={currentUsers}
+                    navigate={navigate}
+                    handleRequestSelect={handleRequestSelect}
+                    handleCopyReqId={handleCopyReqId}
+                    handleOpenInNewTab={handleOpenInNewTab}
+                    formatCurrency={formatCurrency}
+                    renderActionColumn={renderActionColumn}
+                    Pagination={Pagination}
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    handlePageChange={handlePageChange}
+                    itemsPerPage={itemsPerPage}
+                    filteredUsers={filteredUsers}
+                />
 
                 {isShowModal && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white p-4 md:p-6 rounded-lg shadow-lg w-full max-w-sm md:max-w-md">
-                            <h3 className="text-lg md:text-xl font-semibold mb-4">
-                                Send Edit Request
-                            </h3>
-                            <p className="mb-6 text-sm md:text-base">
-                                Do you want to send a edit request email to the
-                                Head of Department?
-                            </p>
-
-                            <div className="flex justify-end gap-4">
-                                <button
-                                    onClick={() => setIsShowModal(false)}
-                                    className="px-3 py-1.5 md:px-4 md:py-2 border rounded-lg text-sm hover:bg-gray-100"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        setIsShowModal(false);
-                                        sendEditMail();
-                                    }}
-                                    className="bg-primary text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-sm hover:bg-primary/90"
-                                >
-                                    Send Request
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <EditReqModal
+                        setIsShowModal={setIsShowModal}
+                        sendEditMail={sendEditMail}
+                    />
                 )}
 
                 {isDelete && (
-                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white p-4 md:p-6 rounded-lg shadow-lg w-full max-w-sm md:max-w-md">
-                            <h3 className="text-lg md:text-xl font-semibold mb-4">
-                                Do you really want to delete this request?
-                            </h3>
-
-                            <div className="flex justify-end gap-4">
-                                <button
-                                    onClick={() => setIsDelete(false)}
-                                    className="px-3 py-1.5 md:px-4 md:py-2 border rounded-lg text-sm hover:bg-gray-100"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(reqId)}
-                                    className="bg-primary text-white px-3 py-1.5 md:px-4 md:py-2 rounded-lg text-sm hover:bg-primary/90"
-                                >
-                                    Yes, Delete
-                                </button>
-                            </div>
-                        </div>
-                    </div>
+                    <DeleteReqModal
+                        setIsDelete={setIsDelete}
+                        handleDelete={handleDelete}
+                        reqId={reqId}
+                    />
                 )}
             </div>
         </>

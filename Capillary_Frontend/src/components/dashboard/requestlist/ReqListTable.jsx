@@ -61,6 +61,9 @@ const ReqListTable = () => {
     const [departmentFilter, setDepartmentFilter] = useState("");
     const [showDepartmentOptions, setShowDepartmentOptions] = useState(false);
 
+    // Add state for dynamic departments list
+    const [availableDepartments, setAvailableDepartments] = useState([]);
+
     // Add state for applied filters to track what filters are currently active
     const [appliedFilters, setAppliedFilters] = useState({
         statusFilter: "",
@@ -73,17 +76,73 @@ const ReqListTable = () => {
 
     const itemsPerPage = 20;
 
-    const departments = [
-        "Head of the department",
-        "Business Finance",
-        "Vendor Management",
-        "Legal Team",
-        "Info Security",
-        "Head of Finance",
-        "Proceed the PO invoice",
-    ];
-
     const statusesWithDepartments = ["Pending", "Rejected", "Hold"];
+
+    // Enhanced function to extract unique departments from data based on status
+    const getAvailableDepartmentsForStatus = (status, data) => {
+        if (!statusesWithDepartments.includes(status)) {
+            console.log(`Status "${status}" doesn't support department filtering`);
+            return [];
+        }
+
+        console.log(`\n=== GETTING DEPARTMENTS FOR STATUS: ${status} ===`);
+        console.log(`Total data records: ${data.length}`);
+
+        // Filter by status first
+        const filteredData = data.filter((item) => item.status === status);
+        console.log(`Records with status "${status}": ${filteredData.length}`);
+
+        if (filteredData.length === 0) {
+            console.log(`⚠️ No records found with status "${status}"`);
+            return [];
+        }
+
+        // Extract departments with debugging
+        const allNextDepartments = filteredData.map(item => ({
+            reqid: item.reqid,
+            nextDepartment: item.nextDepartment
+        }));
+        
+        console.log(`Sample nextDepartment values for ${status}:`, 
+            allNextDepartments.slice(0, 10)
+        );
+
+        // Get unique, non-empty departments
+        const departments = filteredData
+            .map((item) => item.nextDepartment)
+            .filter((dept) => dept && dept.trim() !== "") // Filter out null, undefined, or empty strings
+            .filter((dept, index, arr) => arr.indexOf(dept) === index) // Remove duplicates
+            .sort(); // Sort alphabetically
+
+        console.log(`Final unique departments for "${status}":`, departments);
+        console.log(`Department count: ${departments.length}`);
+        
+        return departments;
+    };
+
+    // Enhanced useEffect for department updates with logging
+    useEffect(() => {
+        console.log(`\n=== DEPARTMENT UPDATE EFFECT ===`);
+        console.log("Current statusFilter:", statusFilter);
+        console.log("Users data length:", users.length);
+        
+        if (statusFilter && statusesWithDepartments.includes(statusFilter)) {
+            console.log(`Status "${statusFilter}" supports department filtering`);
+            
+            const departments = getAvailableDepartmentsForStatus(statusFilter, users);
+            console.log("Setting available departments:", departments);
+            setAvailableDepartments(departments);
+
+            // If current department filter is not available in new list, clear it
+            if (departmentFilter && !departments.includes(departmentFilter)) {
+                console.log(`Clearing department filter "${departmentFilter}" as it's not available for status "${statusFilter}"`);
+                setDepartmentFilter("");
+            }
+        } else {
+            console.log("Clearing available departments");
+            setAvailableDepartments([]);
+        }
+    }, [statusFilter, users, departmentFilter]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -101,6 +160,8 @@ const ReqListTable = () => {
             setIsLoading(true);
             try {
                 let response;
+                console.log("Fetching initial data for role:", role);
+                
                 if (role === "Admin") {
                     response = await getAdminReqListEmployee();
                 } else {
@@ -108,6 +169,7 @@ const ReqListTable = () => {
                 }
 
                 if (response && response.data) {
+                    console.log("Initial data loaded:", response.data.data.length, "records");
                     setUsers(response.data.data);
                     setFilteredUsers(response.data.data);
                 }
@@ -122,10 +184,18 @@ const ReqListTable = () => {
         fetchInitialData();
     }, [userId, role]);
 
-    // Apply filters function that calls the API
+    // Enhanced apply filters function with comprehensive logging for admin
     const applyFilters = async () => {
         setIsApplyingFilter(true);
         setIsLoading(true);
+
+        console.log("=== FILTER APPLICATION START ===");
+        console.log("User Role:", role);
+        console.log("Filters being applied:", {
+            statusFilter,
+            departmentFilter,
+            dateFilters,
+        });
 
         try {
             let response;
@@ -138,16 +208,162 @@ const ReqListTable = () => {
                 dateFilters.toDate;
 
             if (hasFilters) {
-                // Call the filtered API
-                response = await getFilteredRequests({
-                    userId: role === "Admin" ? null : userId,
-                    status: statusFilter || null,
-                    department: departmentFilter || null,
-                    fromDate: dateFilters.fromDate || null,
-                    toDate: dateFilters.toDate || null,
-                });
+                console.log("Has filters - proceeding with filtering...");
+
+                // For admin, always get all data first, then apply client-side filtering
+                // This ensures we have complete data to work with
+                console.log("Getting all admin data first...");
+                
+                if (role === "Admin") {
+                    response = await getAdminReqListEmployee();
+                } else {
+                    response = await getReqListEmployee(userId);
+                }
+
+                if (response && response.data) {
+                    let filteredData = response.data.data;
+
+                    console.log("=== DATA ANALYSIS ===");
+                    console.log("Total records received:", filteredData.length);
+                    
+                    // Analyze the data structure
+                    if (filteredData.length > 0) {
+                        console.log("Sample record structure:", {
+                            reqid: filteredData[0].reqid,
+                            status: filteredData[0].status,
+                            nextDepartment: filteredData[0].nextDepartment,
+                            userName: filteredData[0].userName,
+                            createdAt: filteredData[0].createdAt
+                        });
+                    }
+
+                    // Show unique statuses available
+                    const uniqueStatuses = [...new Set(filteredData.map(req => req.status))];
+                    console.log("Available statuses in data:", uniqueStatuses);
+
+                    // Show unique departments
+                    const uniqueDepartments = [...new Set(filteredData.map(req => req.nextDepartment))].filter(dept => dept);
+                    console.log("Available nextDepartments in data:", uniqueDepartments);
+
+                    // Apply status filter first
+                    if (statusFilter) {
+                        const beforeCount = filteredData.length;
+                        console.log(`\n=== APPLYING STATUS FILTER: ${statusFilter} ===`);
+                        
+                        filteredData = filteredData.filter((request) => {
+                            const matches = request.status === statusFilter;
+                            return matches;
+                        });
+                        
+                        console.log(`Status filter result: ${beforeCount} -> ${filteredData.length} records`);
+                        
+                        if (filteredData.length > 0) {
+                            // Show sample of filtered records
+                            console.log("Sample records after status filter:", 
+                                filteredData.slice(0, 3).map(req => ({
+                                    reqid: req.reqid,
+                                    status: req.status,
+                                    nextDepartment: req.nextDepartment
+                                }))
+                            );
+                            
+                            // Show unique departments for this status
+                            const statusDepartments = [...new Set(filteredData.map(req => req.nextDepartment))].filter(dept => dept);
+                            console.log(`Available departments for ${statusFilter}:`, statusDepartments);
+                        } else {
+                            console.log("⚠️ No records found for status:", statusFilter);
+                        }
+                    }
+
+                    // Apply department filter
+                    if (departmentFilter) {
+                        const beforeCount = filteredData.length;
+                        console.log(`\n=== APPLYING DEPARTMENT FILTER: ${departmentFilter} ===`);
+                        
+                        // Show what departments are available before filtering
+                        const availableDepts = [...new Set(filteredData.map(req => req.nextDepartment))].filter(dept => dept);
+                        console.log("Available departments before dept filter:", availableDepts);
+                        
+                        filteredData = filteredData.filter((request) => {
+                            const requestDept = request.nextDepartment;
+                            const matches = requestDept === departmentFilter;
+                            
+                            if (!matches && requestDept) {
+                                console.log(`Excluding: reqid=${request.reqid}, nextDept="${requestDept}" (looking for "${departmentFilter}")`);
+                            } else if (matches) {
+                                console.log(`Including: reqid=${request.reqid}, nextDept="${requestDept}"`);
+                            }
+                            
+                            return matches;
+                        });
+                        
+                        console.log(`Department filter result: ${beforeCount} -> ${filteredData.length} records`);
+                        
+                        if (filteredData.length === 0 && departmentFilter) {
+                            console.log("⚠️ No records found for department:", departmentFilter);
+                            console.log("This might indicate:");
+                            console.log("1. No requests have nextDepartment =", departmentFilter);
+                            console.log("2. Case sensitivity issue");
+                            console.log("3. Data inconsistency");
+                        }
+                    }
+
+                    // Apply date filters
+                    if (dateFilters.fromDate) {
+                        const beforeCount = filteredData.length;
+                        console.log(`\n=== APPLYING FROM DATE FILTER: ${dateFilters.fromDate} ===`);
+                        
+                        filteredData = filteredData.filter((request) => {
+                            const requestDate = new Date(request.createdAt);
+                            const fromDate = new Date(dateFilters.fromDate);
+                            return requestDate >= fromDate;
+                        });
+                        
+                        console.log(`From date filter result: ${beforeCount} -> ${filteredData.length} records`);
+                    }
+                    
+                    if (dateFilters.toDate) {
+                        const beforeCount = filteredData.length;
+                        console.log(`\n=== APPLYING TO DATE FILTER: ${dateFilters.toDate} ===`);
+                        
+                        filteredData = filteredData.filter((request) => {
+                            const requestDate = new Date(request.createdAt);
+                            const toDate = new Date(dateFilters.toDate);
+                            toDate.setHours(23, 59, 59, 999);
+                            return requestDate <= toDate;
+                        });
+                        
+                        console.log(`To date filter result: ${beforeCount} -> ${filteredData.length} records`);
+                    }
+
+                    console.log("\n=== FINAL RESULTS ===");
+                    console.log("Final filtered data count:", filteredData.length);
+                    
+                    if (filteredData.length > 0) {
+                        console.log("Final sample records:", 
+                            filteredData.slice(0, 5).map(req => ({
+                                reqid: req.reqid,
+                                status: req.status,
+                                nextDepartment: req.nextDepartment,
+                                userName: req.userName,
+                                createdAt: req.createdAt
+                            }))
+                        );
+                    } else {
+                        console.log("❌ No records match the applied filters");
+                        console.log("Applied filters summary:", {
+                            status: statusFilter || "Any",
+                            department: departmentFilter || "Any",
+                            fromDate: dateFilters.fromDate || "Any",
+                            toDate: dateFilters.toDate || "Any"
+                        });
+                    }
+
+                    // Update response with filtered data
+                    response.data.data = filteredData;
+                }
             } else {
-                // If no filters, get all data
+                console.log("No filters applied - getting all data");
                 if (role === "Admin") {
                     response = await getAdminReqListEmployee();
                 } else {
@@ -170,12 +386,13 @@ const ReqListTable = () => {
                 setShowFilters(false); // Close filter panel after applying
             }
         } catch (error) {
-            console.error("Error applying filters:", error);
+            console.error("❌ Error applying filters:", error);
         } finally {
             setIsApplyingFilter(false);
             setTimeout(() => {
                 setIsLoading(false);
             }, 500);
+            console.log("=== FILTER APPLICATION END ===\n");
         }
     };
 
@@ -204,7 +421,8 @@ const ReqListTable = () => {
                     user.procurements?.vendorName
                         ?.toLowerCase()
                         .includes(searchLower) ||
-                    user.status?.toLowerCase().includes(searchLower)
+                    user.status?.toLowerCase().includes(searchLower) ||
+                    user.nextDepartment?.toLowerCase().includes(searchLower)
                 );
             });
         }
@@ -227,20 +445,24 @@ const ReqListTable = () => {
 
     const handleStatusFilterChange = (e) => {
         const newStatus = e.target.value;
+        console.log("Status filter changed to:", newStatus);
         setStatusFilter(newStatus);
 
-        if (!statusesWithDepartments.includes(newStatus)) {
-            setDepartmentFilter("");
-        }
+        // Clear department filter when status changes
+        setDepartmentFilter("");
 
+        // Show department options for statuses that support it
         setShowDepartmentOptions(statusesWithDepartments.includes(newStatus));
     };
 
     const handleDepartmentFilterChange = (e) => {
-        setDepartmentFilter(e.target.value);
+        const newDepartment = e.target.value;
+        console.log("Department filter changed to:", newDepartment);
+        setDepartmentFilter(newDepartment);
     };
 
     const clearFilters = () => {
+        console.log("Clearing all filters");
         setDateFilters({
             fromDate: "",
             toDate: "",
@@ -249,6 +471,7 @@ const ReqListTable = () => {
         setDepartmentFilter("");
         setSearchTerm("");
         setShowDepartmentOptions(false);
+        setAvailableDepartments([]);
 
         // Reset applied filters and reload all data
         setAppliedFilters({
@@ -261,7 +484,28 @@ const ReqListTable = () => {
         });
 
         // Reload all data
-        applyFilters();
+        const fetchAllData = async () => {
+            setIsLoading(true);
+            try {
+                let response;
+                if (role === "Admin") {
+                    response = await getAdminReqListEmployee();
+                } else {
+                    response = await getReqListEmployee(userId);
+                }
+
+                if (response && response.data) {
+                    setUsers(response.data.data);
+                    setFilteredUsers(response.data.data);
+                }
+            } catch (error) {
+                console.error("Error fetching all data:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchAllData();
     };
 
     const handleCopyReqId = async (reqId, e) => {
@@ -447,8 +691,17 @@ const ReqListTable = () => {
         if (appliedFilters.statusFilter) {
             text += `Status: ${appliedFilters.statusFilter}`;
             if (appliedFilters.departmentFilter) {
-                text += ` - ${appliedFilters.departmentFilter}`;
+                text += ` (Next Dept: ${appliedFilters.departmentFilter})`;
             }
+        }
+        if (
+            appliedFilters.dateFilters.fromDate ||
+            appliedFilters.dateFilters.toDate
+        ) {
+            if (text) text += " | ";
+            text += `Date: ${appliedFilters.dateFilters.fromDate || "Any"} to ${
+                appliedFilters.dateFilters.toDate || "Any"
+            }`;
         }
         return text;
     };
@@ -492,7 +745,7 @@ const ReqListTable = () => {
                                         <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
                                             {appliedFilters.statusFilter}
                                             {appliedFilters.departmentFilter &&
-                                                ` - ${appliedFilters.departmentFilter}`}
+                                                ` (${appliedFilters.departmentFilter})`}
                                         </span>
                                     )}
                                     {(appliedFilters.dateFilters.fromDate ||
@@ -555,7 +808,7 @@ const ReqListTable = () => {
                                 type="text"
                                 value={searchTerm}
                                 onChange={handleSearchChange}
-                                placeholder="Search by ID, name, or employee..."
+                                placeholder="Search by ID, name, department, or next department..."
                                 className="w-full pl-10 pr-4 py-2 md:py-2.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
                             />
                         </div>
@@ -629,27 +882,54 @@ const ReqListTable = () => {
                                 </select>
                             </div>
 
-                            {statusesWithDepartments.includes(statusFilter) && (
-                                <div className="mb-4">
-                                    <h4 className="text-sm font-medium text-gray-700 mb-2">
-                                        Department ({statusFilter})
-                                    </h4>
-                                    <select
-                                        value={departmentFilter}
-                                        onChange={handleDepartmentFilterChange}
-                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
-                                    >
-                                        <option value="">
-                                            All Departments
-                                        </option>
-                                        {departments.map((dept) => (
-                                            <option key={dept} value={dept}>
-                                                {dept}
+                            {statusesWithDepartments.includes(statusFilter) &&
+                                availableDepartments.length > 0 && (
+                                    <div className="mb-4">
+                                        <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                            Next Department ({statusFilter})
+                                        </h4>
+                                        <select
+                                            value={departmentFilter}
+                                            onChange={
+                                                handleDepartmentFilterChange
+                                            }
+                                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-primary focus:border-primary"
+                                        >
+                                            <option value="">
+                                                All Departments
                                             </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
+                                            {availableDepartments.map(
+                                                (dept) => (
+                                                    <option
+                                                        key={dept}
+                                                        value={dept}
+                                                    >
+                                                        {dept}
+                                                    </option>
+                                                )
+                                            )}
+                                        </select>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Showing{" "}
+                                            {availableDepartments.length}{" "}
+                                            departments for {statusFilter}{" "}
+                                            status
+                                        </p>
+                                    </div>
+                                )}
+
+                            {statusesWithDepartments.includes(statusFilter) &&
+                                availableDepartments.length === 0 && (
+                                    <div className="mb-4">
+                                        <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                            Next Department ({statusFilter})
+                                        </h4>
+                                        <div className="px-3 py-2 text-sm text-gray-500 bg-gray-50 rounded-md border">
+                                            No departments available for{" "}
+                                            {statusFilter} status
+                                        </div>
+                                    </div>
+                                )}
 
                             <div className="mb-4">
                                 <h4 className="text-sm font-medium text-gray-700 mb-2">

@@ -343,7 +343,6 @@ exports.createNewEmployee = async (req, res) => {
   }
 };
 
-
 exports.createNewReq = async (req, res) => {
   try {
     console.log("Complinces", req.body, req.params.id);
@@ -415,7 +414,7 @@ exports.createNewReq = async (req, res) => {
       complinces: req.body.complinces,
       hasDeviations: req.body.hasDeviations ? 1 : 0,
       firstLevelApproval: {
-        hodName: req.body.commercials.hod, 
+        hodName: req.body.commercials.hod,
         hodEmail: req.body.commercials.hodEmail,
         hodDepartment: req.body.commercials.department,
         status: "Pending",
@@ -451,7 +450,6 @@ exports.getAllEmployeeReq = async (req, res) => {
   try {
     console.log("Welcome to get req", req.params.id);
 
-
     const reqList = await CreateNewReq.find({ userId: req.params.id })
       .sort({ createdAt: -1 })
       .lean();
@@ -483,7 +481,6 @@ exports.getAllEmployeeReq = async (req, res) => {
 
       return { ...request, ...departmentInfo };
     });
-
 
     return res.status(200).json({
       message: "Requests fetched successfully",
@@ -518,13 +515,15 @@ exports.getAdminEmployeeReq = async (req, res) => {
           } else {
             departmentInfo.nextDepartment = firstLevelApproval.hodDepartment;
           }
-        } else if (latestLevelApproval.status === "Approved") {
+        } else if (latestLevelApproval.status === "Approved" &&((request.status!=="PO-Pending")||(request.status!=="Invoice-Pending"))) {
           departmentInfo.nextDepartment = latestLevelApproval.nextDepartment;
         } else if (
           latestLevelApproval.status === "Hold" ||
           latestLevelApproval.status === "Rejected"
         ) {
-          departmentInfo.cDepartment = latestLevelApproval.departmentName;
+          departmentInfo.nextDepartment = latestLevelApproval.departmentName;
+        } else if (latestLevelApproval.status === "PO-Pending") {
+          departmentInfo.nextDepartment = "Head of Finance";
         }
 
         return { ...request, ...departmentInfo };
@@ -577,7 +576,6 @@ exports.getIndividualReq = async (req, res) => {
       .exec();
     console.log("reqList===>", reqList);
     const empData = await Employee.findOne({ employee_id: reqList.userId });
-    console.log("Employee data", empData);
 
     let currDepartment;
 
@@ -944,12 +942,10 @@ exports.editApproverData = async (req, res) => {
     );
 
     if (approverIndex === -1) {
-      return res
-        .status(404)
-        .json({
-          success: false,
-          message: "Approver not found in original location",
-        });
+      return res.status(404).json({
+        success: false,
+        message: "Approver not found in original location",
+      });
     }
 
     // Remove approver from original location
@@ -1013,7 +1009,6 @@ exports.editApproverData = async (req, res) => {
   }
 };
 
-
 exports.deleteApproverData = async (req, res) => {
   try {
     console.log("Welcome to delete approver data", req.body);
@@ -1024,7 +1019,9 @@ exports.deleteApproverData = async (req, res) => {
     const approverData = await Approver.findOne({ businessUnit });
 
     if (!approverData) {
-      return res.status(404).json({ success: false, message: "Business unit not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Business unit not found" });
     }
 
     // Step 2: Find the department
@@ -1033,7 +1030,9 @@ exports.deleteApproverData = async (req, res) => {
     );
 
     if (!department) {
-      return res.status(404).json({ success: false, message: "Department not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Department not found" });
     }
 
     // Step 3: Remove the approver from the department
@@ -1044,7 +1043,9 @@ exports.deleteApproverData = async (req, res) => {
     );
 
     if (department.approvers.length === initialLength) {
-      return res.status(404).json({ success: false, message: "Approver not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Approver not found" });
     }
 
     // Step 4: Save the updated data
@@ -1053,9 +1054,8 @@ exports.deleteApproverData = async (req, res) => {
     res.status(200).json({
       success: true,
       message: "Approver deleted successfully",
-      data: approverData
+      data: approverData,
     });
-
   } catch (err) {
     console.error("Error deleting approver data:", err);
     res.status(500).json({ success: false, message: "Server error" });

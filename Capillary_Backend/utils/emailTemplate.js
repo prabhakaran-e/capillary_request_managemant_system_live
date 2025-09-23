@@ -303,6 +303,45 @@ invoiceUploadedEmail: {
     </html>
   `,
 },
+poExpiryNotificationEmail: {
+  subject: `PO Expiry Notification`,
+  html: `
+    <!DOCTYPE html>
+    <html>
+      <body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f9f9f9; text-align: center;">
+        <div style="max-width: 600px; margin: 20px auto; background: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
+          
+          <!-- Header -->
+          <div style="background-color: #dc3545; color: #ffffff; padding: 20px;">
+            <h1>PO Expiry Alert</h1>
+          </div>
+          
+          <!-- Body -->
+          <div style="padding: 20px; color: #333; text-align: left;">
+            <p>Dear Team,</p>
+            <p>The Purchase Order request with ID <strong>{{reqId}}</strong> is about to <span style="color: #dc3545;">expire</span>.</p>
+            <p><strong>Valid Until:</strong> {{poValidTo}}</p>
+            <p>Please take the necessary action at the earliest to avoid disruptions.</p>
+            
+            <!-- CTA Button -->
+            <div style="text-align: center; margin-top: 30px;">
+              <a href="{{poLink}}" 
+              style="background-color: #dc3545; color: white; padding: 12px 25px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+                View PO Request
+              </a>
+            </div>
+          </div>
+          
+          <!-- Footer -->
+          <div style="background-color: #f1f1f1; padding: 15px; font-size: 12px; color: #777;">
+            <p>This is an automated reminder from Capillary Finance System. Please do not reply.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `,
+}
+
 
 };
 

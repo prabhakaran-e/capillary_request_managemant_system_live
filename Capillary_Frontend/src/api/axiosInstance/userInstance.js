@@ -1,7 +1,8 @@
 import axios from "axios";
 
+
 export const userInstance = axios.create({
-  baseURL: import.meta.env.VITE_BASE_URL,
+  baseURL: import.meta.env.VITE_BASE_URL_TEST,
 });
 
 userInstance.interceptors.response.use(
