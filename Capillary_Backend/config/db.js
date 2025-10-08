@@ -11,7 +11,9 @@ const dbConnect = () => {
     "Welcome to database",
     MONGO_USERNAME_SANDBOX,
     MONGO_PASSWORD_SANDBOX,
-    MONGO_DATABASE_NAME_SANDBOX
+    MONGO_DATABASE_NAME_SANDBOX,
+    process.env.MONGO_USERNAME_SANDBOX
+
   );
   mongoose
     .connect(
