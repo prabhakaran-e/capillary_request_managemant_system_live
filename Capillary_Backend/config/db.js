@@ -7,14 +7,7 @@ const {
 } = require("./variables");
 
 const dbConnect = () => {
-  console.log(
-    "Welcome to database",
-    MONGO_USERNAME_SANDBOX,
-    MONGO_PASSWORD_SANDBOX,
-    MONGO_DATABASE_NAME_SANDBOX,
-    process.env.MONGO_USERNAME_SANDBOX
 
-  );
   mongoose
     .connect(
       //test
@@ -24,7 +17,7 @@ const dbConnect = () => {
       // `mongodb+srv://${MONGO_USERNAME_PO}:${MONGO_PASSWORD_PO}@cluster0.5vetz.mongodb.net/${MONGO_DATABASE_NAME_PO}`,
 
       //sandbox
-      `mongodb+srv://${MONGO_USERNAME_SANDBOX}:${MONGO_PASSWORD_SANDBOX}@cluster0.tz9hmqx.mongodb.net/${MONGO_DATABASE_NAME_SANDBOX}`,
+      `mongodb+srv://${process.env.MONGO_USERNAME_SANDBOX}:${process.env.MONGO_PASSWORD_SANDBOX}@cluster0.tz9hmqx.mongodb.net/${process.env.MONGO_DATABASE_NAME_SANDBOX}`,
       {
         serverSelectionTimeoutMS: 30000,
         socketTimeoutMS: 45000,
