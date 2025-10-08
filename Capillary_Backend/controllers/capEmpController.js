@@ -71,7 +71,7 @@ const verifyUser = async (req, res) => {
           department: consolidatedData.department,
           capEmpId: consolidatedData.employee_id,
         },
-        CAPILLARY_JWT_SECRET,
+        process.env.CAPILLARY_JWT_SECRET,
         { expiresIn: "10h" }
       );
       if (loginMail?.emailStatus) {

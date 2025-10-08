@@ -66,18 +66,18 @@ exports.syncEmployeeData = async (req, res) => {
     // console.log("syncOffEmployee", syncOffEmployee);
     const options = {
       method: "POST",
-      url: `${DARWINBOX_BASE_URL}`,
+      url: `${process.env.DARWINBOX_BASE_URL}`,
       headers: {
         "Content-Type": "application/json",
         Authorization:
           "Basic " +
-          Buffer.from(`${DARWINBOX_USERNAME}:${DARWINBOX_PASSWORD}`).toString(
+          Buffer.from(`${process.env.DARWINBOX_USERNAME}:${process.env.DARWINBOX_PASSWORD}`).toString(
             "base64"
           ),
       },
       data: {
-        api_key: `${DARWINBOX_API_KEY}`,
-        datasetKey: `${DARWINBOX_DATASET_KEY}`,
+        api_key: `${process.env.DARWINBOX_API_KEY}`,
+        datasetKey: `${process.env.DARWINBOX_DATASET_KEY}`,
       },
     };
 
