@@ -10,7 +10,7 @@ const uploadFiles = async (files, fileType,reqId) => {
     formData.append("fileType", fileType);
 
     const response = await axios.post(
-      `${import.meta.env.VITE_BASE_URL_TEST}/upload-s3/upload?reqId=${reqId}`,
+      `${import.meta.env.VITE_BASE_URL_TEST_MODE}/upload-s3/upload?reqId=${reqId}`,
       
       formData,
       {

@@ -154,7 +154,9 @@ const createNewReq = async (req, res) => {
     let panelMemberEmail = []
     if(commercials?.hodEmail){
 
-      panelMemberEmail.push(commercials.hodEmail);
+      // panelMemberEmail.push(commercials.hodEmail);
+            panelMemberEmail.push("prabhakaran.e@capillarytech.com");
+
     }
 
     let existingRequest = await CreateNewReq.findOne({ reqid: reqId });

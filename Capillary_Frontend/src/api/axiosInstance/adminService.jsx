@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const adminServices = axios.create({
-  baseURL: import.meta.env.VITE_BASE_URL_SANDBOX,
+  baseURL: import.meta.env.VITE_BASE_URL_TEST_MODE,
 });
 
 adminServices.interceptors.request.use(
