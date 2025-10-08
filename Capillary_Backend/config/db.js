@@ -18,7 +18,7 @@ const dbConnect = () => {
     .connect(
 
       //test
-      `mongodb+srv://${MONGO_USERNAME_TEST}:${MONGO_PASSWORD_TEST}@cluster0.jczad.mongodb.net/${MONGO_DATABASE_NAME_TEST}`,
+      // `mongodb+srv://${MONGO_USERNAME_TEST}:${MONGO_PASSWORD_TEST}@cluster0.jczad.mongodb.net/${MONGO_DATABASE_NAME_TEST}`,
 
 
        //live
@@ -26,7 +26,7 @@ const dbConnect = () => {
 
 
       //sandbox
-      // `mongodb+srv://${MONGO_USERNAME_SANDBOX}:${MONGO_PASSWORD_SANDBOX}@cluster0.tz9hmqx.mongodb.net/${MONGO_DATABASE_NAME_SANDBOX}`,
+      `mongodb+srv://${MONGO_USERNAME_SANDBOX}:${MONGO_PASSWORD_SANDBOX}@cluster0.tz9hmqx.mongodb.net/${MONGO_DATABASE_NAME_SANDBOX}`,
       {
         serverSelectionTimeoutMS: 30000,
         socketTimeoutMS: 45000,
