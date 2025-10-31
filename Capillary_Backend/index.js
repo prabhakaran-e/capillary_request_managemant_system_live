@@ -27,7 +27,8 @@ dotenv.config();
 async function startServer() {
   try {
     // 1️⃣ Load secrets before anything else
-    await loadSecrets();
+   const se =  await loadSecrets();
+    console.log("se",se)
     // require("./utils/poExpiryReminderEmail")
   
 

@@ -23,6 +23,10 @@ const s3 = new S3Client({
   },
 });
 
+console.log("process.env.AWS_ACCESS_KEY_ID: ",process.env.AWS_ACCESS_KEY_ID)
+console.log("process.env.AWS_SECRET_ACCESS_KEY: ",process.env.AWS_SECRET_ACCESS_KEY)
+console.log("process.env.S3_BUCKET_NAME: ",process.env.S3_BUCKET_NAME)
+
 // Upload files route
 s3Router.post("/upload", upload.array("files"), async (req, res) => {
   try {
