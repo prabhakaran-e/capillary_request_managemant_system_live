@@ -23,13 +23,18 @@ const s3 = new S3Client({
   },
 });
 
-console.log("process.env.AWS_ACCESS_KEY_ID: ",process.env.AWS_ACCESS_KEY_ID)
-console.log("process.env.AWS_SECRET_ACCESS_KEY: ",process.env.AWS_SECRET_ACCESS_KEY)
-console.log("process.env.S3_BUCKET_NAME: ",process.env.S3_BUCKET_NAME)
-
 // Upload files route
 s3Router.post("/upload", upload.array("files"), async (req, res) => {
   try {
+    console.log(
+      "process.env.AWS_ACCESS_KEY_ID: ",
+      process.env.AWS_ACCESS_KEY_ID
+    );
+    console.log(
+      "process.env.AWS_SECRET_ACCESS_KEY: ",
+      process.env.AWS_SECRET_ACCESS_KEY
+    );
+    console.log("process.env.S3_BUCKET_NAME: ", process.env.S3_BUCKET_NAME);
     const files = req.files;
     const { fileType } = req.body;
     const date = new Date();
@@ -136,22 +141,6 @@ s3Router.post("/refresh-presigned-url", async (req, res) => {
 });
 
 module.exports = s3Router;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // const AWS = require("aws-sdk");
 // const express = require("express");
