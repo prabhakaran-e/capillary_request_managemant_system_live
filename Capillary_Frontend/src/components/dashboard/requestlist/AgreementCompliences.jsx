@@ -261,15 +261,20 @@ const AgreementCompliances = ({
     };
 
     const handleContinueClick = () => {
-        const hasAnyDeviation = questions.some(
-            (q) => answers[q._id] !== q.expectedAnswer
-        );
+        // Determine if there is ANY change in Legal or Info Security questions
+        const hasChangeInLegalOrInfo = questions.some((q) => {
+            const dept = (q?.createdBy?.department || "").toLowerCase();
+            const isLegal = dept.includes("legal");
+            const isInfoSec = dept.includes("info") && dept.includes("security");
+            if (!(isLegal || isInfoSec)) return false;
+            return answers[q._id] !== q.expectedAnswer;
+        });
 
-        if (hasAnyDeviation) {
-            // Show risk popup if there are deviations
+        if (!hasChangeInLegalOrInfo) {
+            // Only when there are NO changes in Legal or Info Security, show risk acceptance modal
             setIsRiskPopupOpen(true);
         } else {
-            // Directly proceed if no deviations
+            // If any change happened in Legal or Info Security, skip modal and proceed
             handleSubmit();
         }
     };

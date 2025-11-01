@@ -268,7 +268,7 @@ const RequestLogsTable = ({ createdAt, logData, reqLogs }) => {
                                                     {log.approverName || "NA"}
                                                 </p>
                                                 <p className="text-xs text-gray-500">
-                                                    {log.departmentName || "NA"}
+                                                    {log.departmentName === "Head of Finance" ? "PO team" : (log.departmentName || "NA")}
                                                 </p>
                                             </div>
                                         </td>
@@ -324,7 +324,7 @@ const RequestLogsTable = ({ createdAt, logData, reqLogs }) => {
                                         <td className="px-4 py-3">
                                             <div className="flex items-center space-x-1">
                                                 <span className="text-sm text-gray-900">
-                                                    {log.nextDepartment}
+                                                    {log.nextDepartment === "Head of Finance" ? "PO team" : log.nextDepartment}
                                                 </span>
                                                 <ChevronRight
                                                     size={16}

@@ -1,6 +1,6 @@
 import React from "react";
 
-const PoDataAddForm = ({formData,handleInputChange,currencies,monthlyEntries,updateMonthlyEntry,months,years,addMonthlyEntry,removeMonthlyEntry,setShowForm,setEditingId,resetForm,handleSubmit,editingId}) => {
+const PoDataAddForm = ({formData,handleInputChange,currencies,monthlyEntries,updateMonthlyEntry,months,years,addMonthlyEntry,removeMonthlyEntry,setShowForm,setEditingId,resetForm,handleSubmit,editingId,searchMode,setSearchMode,searchQuery,setSearchQuery,onSearch,onAutoCalculate}) => {
   return (
     <div className="p-6 border-b border-gray-200 bg-gray-50">
       <h3 className="text-lg font-semibold mb-4">
@@ -14,12 +14,11 @@ const PoDataAddForm = ({formData,handleInputChange,currencies,monthlyEntries,upd
             FY Start *
           </label>
           <input
-            type="text"
+            type="date"
             name="fyStart"
             value={formData.fyStart}
             onChange={handleInputChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="2024-25"
             required
           />
         </div>
@@ -29,12 +28,11 @@ const PoDataAddForm = ({formData,handleInputChange,currencies,monthlyEntries,upd
             FY End *
           </label>
           <input
-            type="text"
+            type="date"
             name="fyEnd"
             value={formData.fyEnd}
             onChange={handleInputChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            placeholder="2025-26"
             required
           />
         </div>
@@ -43,14 +41,49 @@ const PoDataAddForm = ({formData,handleInputChange,currencies,monthlyEntries,upd
           <label className="block text-sm font-medium text-gray-700 mb-1">
             PO Number *
           </label>
-          <input
-            type="text"
-            name="poNumber"
-            value={formData.poNumber}
-            onChange={handleInputChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            required
-          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              name="poNumber"
+              value={formData.poNumber}
+              onChange={handleInputChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              required
+            />
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <label className="text-xs text-gray-600">Search by:</label>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSearchMode("po")}
+                className={`px-2 py-1 text-xs rounded ${searchMode === "po" ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-700"}`}
+              >
+                PO Number
+              </button>
+              <button
+                type="button"
+                onClick={() => setSearchMode("req")}
+                className={`px-2 py-1 text-xs rounded ${searchMode === "req" ? "bg-indigo-600 text-white" : "bg-gray-200 text-gray-700"}`}
+              >
+                Request ID
+              </button>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={searchMode === "po" ? "Enter PO Number" : "Enter Request ID"}
+                className="px-2 py-1 text-xs border border-gray-300 rounded"
+              />
+              <button
+                type="button"
+                onClick={() => onSearch && onSearch(searchQuery, searchMode)}
+                className="px-3 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
+              >
+                Search
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="md:col-span-2">
@@ -156,6 +189,13 @@ const PoDataAddForm = ({formData,handleInputChange,currencies,monthlyEntries,upd
             <h4 className="text-md font-medium text-gray-700">
               Monthly Amounts
             </h4>
+            <button
+              type="button"
+              onClick={() => onAutoCalculate && onAutoCalculate()}
+              className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700"
+            >
+              Auto-calculate Monthly Amounts
+            </button>
           </div>
 
           <div className="space-y-3">

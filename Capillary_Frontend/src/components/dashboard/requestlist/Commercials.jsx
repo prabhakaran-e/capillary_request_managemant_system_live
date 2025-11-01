@@ -172,7 +172,7 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                 const response = await getAllEntityData(empId);
                 if (response.status === 200) {
                     const sortedEntities = (response.data.entities || []).sort(
-                        (a, b) => a.entityName.localeCompare(b.entityName)
+                        (a, b) => (a.entityName || "").toLowerCase().localeCompare((b.entityName || "").toLowerCase())
                     );
                     setEntities(sortedEntities);
 
@@ -230,12 +230,11 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                             });
 
                             setUniqueDepartments(deptMap);
-                            setAvailableDepartments(
-                                Array.from(deptMap.values())
+                            const sortedDepartments = Array.from(deptMap.values()).sort((a, b) =>
+                                (a.department || "").toLowerCase().localeCompare((b.department || "").toLowerCase())
                             );
-                            setFilteredDepartments(
-                                Array.from(deptMap.values())
-                            );
+                            setAvailableDepartments(sortedDepartments);
+                            setFilteredDepartments(sortedDepartments);
                         }
                     } else {
                         const sortedBusinessUnits = businessUnits.sort((a, b) =>
@@ -1123,6 +1122,8 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                                             .includes(
                                                 e.target.value.toLowerCase()
                                             )
+                                ).sort((a, b) =>
+                                    (a.department || "").toLowerCase().localeCompare((b.department || "").toLowerCase())
                                 );
                                 setFilteredDepartments(filtered);
                             }}
@@ -1372,6 +1373,56 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
         </div>
     );
 
+    const toTitleCase = (str) => {
+        if (!str) return "";
+        return str
+            .toLowerCase()
+            .split(" ")
+            .filter(Boolean)
+            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ");
+    };
+
+    const renderEntityField = () => {
+        return (
+            <div className="w-full">
+                <label className="block text-sm font-semibold text-primary mb-2">
+                    Entity <span className="text-red-500">*</span>
+                </label>
+                <select
+                    name="entity"
+                    value={localFormData.entity}
+                    onChange={handleEntityChange}
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition duration-300"
+                >
+                    <option value="">Select Entity</option>
+                    {(() => {
+                        const names = [
+                            ...new Set(
+                                entities
+                                    .map((e) => e.entityName)
+                                    .filter(Boolean)
+                            ),
+                        ];
+                        names.sort((a, b) =>
+                            a.toLowerCase().localeCompare(b.toLowerCase())
+                        );
+                        return names.map((entityName, index) => (
+                            <option key={index} value={entityName}>
+                                {toTitleCase(entityName)}
+                            </option>
+                        ));
+                    })()}
+                </select>
+                {errors.entity && (
+                    <p className="text-red-500 text-xs mt-1">
+                        {errors.entity}
+                    </p>
+                )}
+            </div>
+        );
+    };
+
     return (
         <div className="w-full mx-auto bg-white shadow-2xl rounded-2xl overflow-hidden">
             <PaymentTermInfoModal />
@@ -1385,37 +1436,7 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
             <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
                     {renderBusinessUnitField()}
-
-                    <div className="w-full">
-                        <label className="block text-sm font-semibold text-primary mb-2">
-                            Entity <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                            name="entity"
-                            value={localFormData.entity}
-                            onChange={handleEntityChange}
-                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition duration-300"
-                        >
-                            <option value="">Select Entity</option>
-                            {[
-                                ...new Set(
-                                    entities.map((entity) => entity.entityName)
-                                ),
-                            ]
-                                .sort()
-                                .map((entityName, index) => (
-                                    <option key={index} value={entityName}>
-                                        {entityName}
-                                    </option>
-                                ))}
-                        </select>
-                        {errors.entity && (
-                            <p className="text-red-500 text-xs mt-1">
-                                {errors.entity}
-                            </p>
-                        )}
-                    </div>
-
+                    {renderEntityField()}
                     {renderCityField()}
                     {renderSiteField()}
                 </div>
@@ -1757,7 +1778,6 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                         </button>
                     </div>
                 </div>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                     <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1847,7 +1867,6 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                         )}
                     </div>
                 </div>
-
                 <div className="mt-4 sm:mt-8 flex justify-end">
                     <button
                         type="button"

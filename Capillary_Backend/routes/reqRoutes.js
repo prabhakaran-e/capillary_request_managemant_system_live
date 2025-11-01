@@ -18,8 +18,9 @@ router.get('/get-all-chats/:id', reqController.getAllChats);
 router.get('/get-reports', reqController.getReports); 
 router.get('/invoice/download/:id', reqController.downloadInvoicePdf); 
 router.get('/is-approved/:userId/:reqId/:role', reqController.isApproved); 
+router.get('/is-approved/:userId/:reqId/:role', reqController.isApproved); 
 
-router.get('/get-role-based-approvals/:userId/:role', reqController.getRoleBasedApprovals); 
+router.get('/get-individual-request-data/:reqId', reqController.getRequestDataForProvison); 
 
 // router.get('/get-all-request-for-admin', reqController.getAllRequestForAdmin); 
 router.get('/get-email-notification-data', reqController.getAllEmailData);

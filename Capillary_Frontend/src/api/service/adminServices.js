@@ -463,6 +463,18 @@ export const fetchIndividualReq = async (id) => {
     return err;
   }
 };
+
+export const fetchIndividualRequest = async (id) => {
+  try {
+    console.log(id);
+    const response = await adminServices.get(
+      `/request/get-individual-request-data/${id}`
+    );
+    return response;
+  } catch (err) {
+    return err;
+  }
+};
 export const dispalyIsApproved = async (userId, reqId, role) => {
   try {
     const response = await adminServices.get(

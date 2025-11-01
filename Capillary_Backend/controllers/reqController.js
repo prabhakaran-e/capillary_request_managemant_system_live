@@ -5451,7 +5451,55 @@ const getAllFilteredRequest = async (req, res) => {
   }
 };
 
+const getRequestDataForProvison = async (req, res) => {
+  try {
+    const { reqId } = req.params;
+
+    const reqData = await CreateNewReq.findOne(
+      { reqid: reqId },
+      {
+        poDocuments: 1,
+        "procurements.vendor": 1,
+        "procurements.vendorName": 1,
+        "supplies.totalValue": 1,
+        "supplies.selectedCurrency": 1,
+      }
+    );
+
+    if (!reqData) {
+      return res.status(404).json({
+        success: false,
+        message: "Request not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: reqData,
+    });
+
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
+
 module.exports = {
+  getRequestDataForProvison,
   getAllFilteredRequest,
   getSearchedData,
   tagMessageToEmployee,

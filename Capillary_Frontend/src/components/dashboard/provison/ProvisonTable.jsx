@@ -15,6 +15,7 @@ import {
   deletePOData,
   getPoData,
   updatePOData,
+  fetchIndividualRequest,
 } from "../../../api/service/adminServices";
 import PoDataAddForm from "./PoDataAddForm";
 import DataTable from "./DataTable";
@@ -45,6 +46,8 @@ const ProvisonTable = () => {
   const [showCsvInfo, setShowCsvInfo] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ show: false, item: null });
   const fileInputRef = useRef(null);
+  const [searchMode, setSearchMode] = useState("po");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -112,6 +115,105 @@ const ProvisonTable = () => {
     setTimeout(() => {
       setToast({ show: false, message: "", type: "" });
     }, 4000);
+  };
+
+  const onSearch = async (query, mode) => {
+    try {
+      if (!query) return;
+      if (mode === "req") {
+        const response = await fetchIndividualRequest(query);
+        if ( response.status === 200) {
+          const poNumber = response.data.poNumber || response.data.PONumber || "";
+          if (poNumber) {
+            setFormData((prev) => ({ ...prev, poNumber }));
+            showToast("PO Number fetched successfully");
+          } else {
+            showToast("PO Number not found for this Request ID", "error");
+          }
+        } else {
+          showToast("Request not found", "error");
+        }
+      } else {
+        showToast("PO search API not available", "error");
+      }
+    } catch (e) {
+      showToast("Search failed", "error");
+    }
+  };
+
+  const daysInMonth = (year, monthIndex) => {
+    return new Date(year, monthIndex + 1, 0).getDate();
+  };
+
+  const parseISO = (d) => {
+    const [y, m, day] = d.split("-").map((v) => parseInt(v, 10));
+    return { y, m, day };
+  };
+
+  const monthValueFromIndex = (idx) => {
+    const map = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+    return map[idx];
+  };
+
+  const onAutoCalculate = () => {
+    const { poValue, poStartDate, poEndDate, currency } = formData;
+    const totalValue = parseFloat(poValue);
+    if (!totalValue || !poStartDate || !poEndDate) {
+      showToast("Provide PO Value, Start Date and End Date", "error");
+      return;
+    }
+    const s = parseISO(poStartDate);
+    const e = parseISO(poEndDate);
+    const start = new Date(s.y, s.m - 1, s.day);
+    const end = new Date(e.y, e.m - 1, e.day);
+    if (end <= start) {
+      showToast("End date must be after start date", "error");
+      return;
+    }
+
+    let cursorY = s.y;
+    let cursorM = s.m - 1;
+    let totalDays = 0;
+    const perMonthDays = [];
+
+    while (cursorY < e.y || (cursorY === e.y && cursorM <= e.m - 1)) {
+      const dim = daysInMonth(cursorY, cursorM);
+      let startDay = 1;
+      let endDay = dim;
+      if (cursorY === s.y && cursorM === s.m - 1) {
+        startDay = s.day;
+      }
+      if (cursorY === e.y && cursorM === e.m - 1) {
+        endDay = e.day;
+      }
+      const days = Math.max(0, endDay - startDay + 1);
+      if (days > 0) {
+        perMonthDays.push({ y: cursorY, m: cursorM, days });
+        totalDays += days;
+      }
+      cursorM += 1;
+      if (cursorM > 11) {
+        cursorM = 0;
+        cursorY += 1;
+      }
+    }
+
+    if (totalDays <= 0) {
+      showToast("Calculated duration is zero", "error");
+      return;
+    }
+
+    const perDay = totalValue / totalDays;
+    const newEntries = perMonthDays.map(({ y, m, days }) => ({
+      id: Date.now() + Math.random(),
+      month: monthValueFromIndex(m),
+      year: String(y),
+      amount: (perDay * days).toFixed(2),
+      currency: currency || "INR",
+    }));
+
+    setMonthlyEntries(newEntries);
+    showToast("Monthly amounts auto-calculated");
   };
 
   // Fetch data from backend
@@ -846,6 +948,12 @@ const ProvisonTable = () => {
             resetForm={resetForm}
             handleSubmit={handleSubmit}
             editingId={editingId}
+            searchMode={searchMode}
+            setSearchMode={setSearchMode}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onSearch={onSearch}
+            onAutoCalculate={onAutoCalculate}
           />
         )}
 

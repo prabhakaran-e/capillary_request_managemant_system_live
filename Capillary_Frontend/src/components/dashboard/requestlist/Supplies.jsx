@@ -48,7 +48,7 @@ const Supplies = ({
     );
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [selectedCurrency, setSelectedCurrency] = useState(
-        formData.selectedCurrency || "USD"
+        formData.selectedCurrency || "INR"
     );
     const [currencies, setCurrencies] = useState([]);
     const [isLoadingCurrencies, setIsLoadingCurrencies] = useState(true);
