@@ -124,7 +124,6 @@ s3Router.post("/refresh-presigned-url",
       const bucketName = process.env.S3_BUCKET_NAME;
 
       const newPresignedUrl = generatePresignedUrl(bucketName, objectKey);
-      console.log("newPresignedUrl",newPresignedUrl)
 
       res.status(200).json({
         message: "New pre-signed URL generated successfully",
