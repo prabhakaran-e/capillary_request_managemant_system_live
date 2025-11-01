@@ -55,8 +55,8 @@ const TableContent = ({currentUsers,navigate,handleCopyReqId,handleOpenInNewTab,
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {currentUsers.length > 0 ? (
-                  currentUsers.map((user, index) => (
+                {currentUsers?.length > 0 ? (
+                  currentUsers?.map((user, index) => (
                     <tr
                       key={user._id}
                       className="hover:bg-gray-100 cursor-pointer"

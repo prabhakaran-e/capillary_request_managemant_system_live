@@ -628,13 +628,13 @@ const RoleBasedApprovals = () => {
           startIndex ={startIndex }
         />
 
-        {filteredUsers.length > 0 && (
+        {filteredUsers?.length > 0 && (
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
             handlePageChange={handlePageChange}
             itemsPerPage={itemsPerPage}
-            totalItems={filteredUsers.length}
+            totalItems={filteredUsers?.length}
           />
         )}
         {isDelete && (
