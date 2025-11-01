@@ -3680,17 +3680,29 @@ const saveCommercialData = async (req, res) => {
     ).map((member) => member.company_email_id);
 
     let responseMessage = "";
-    let updatedRequest;
+
+    // ✅ Build First Level Approval Object ALWAYS with latest formData values
+    const firstLevelApproval = {
+      hodName: formData.hod,
+      hodEmail: formData.hodEmail,
+      hodDepartment: formData.department,
+      status: "Pending",
+      approved: false,
+    };
 
     // 3. Try to update first
-    updatedRequest = await CreateNewReq.findOneAndUpdate(
+    let updatedRequest = await CreateNewReq.findOneAndUpdate(
       { reqid: newReqId },
-      { $set: { commercials: formData } },
+      {
+        $set: {
+          commercials: formData,
+          firstLevelApproval: firstLevelApproval, // ✅ Always overwrite
+        },
+      },
       { new: true }
     );
 
     if (updatedRequest) {
-      console.log("I am in update", updatedRequest);
       responseMessage = "Commercial data updated successfully.";
     } else {
       // 4. If not found, create a new record with that reqid
@@ -3700,13 +3712,7 @@ const saveCommercialData = async (req, res) => {
         userName: empData.full_name,
         empDepartment: empData.department,
         commercials: formData,
-        firstLevelApproval: {
-          hodName: formData.hod,
-          hodEmail: formData.hodEmail,
-          hodDepartment: formData.department,
-          status: "Pending",
-          approved: false,
-        },
+        firstLevelApproval: firstLevelApproval,
       });
 
       await updatedRequest.save();
@@ -3719,6 +3725,7 @@ const saveCommercialData = async (req, res) => {
       employee: empData,
       panelEmails: panelMemberEmail,
     });
+
   } catch (err) {
     console.error("Error in saving the commercial data:", err);
     return res.status(500).json({
@@ -3728,12 +3735,16 @@ const saveCommercialData = async (req, res) => {
   }
 };
 
+
+
 const editCommercialData = async (req, res) => {
   try {
     const { empId, reqId } = req.params;
     const { formData } = req.body;
+
     console.log("empId", empId, "formData", formData);
 
+    // 1. Get employee details
     let empData = await empModel
       .findOne(
         { _id: empId },
@@ -3751,6 +3762,7 @@ const editCommercialData = async (req, res) => {
       });
     }
 
+    // 2. Get panel member emails (except admin)
     const panelMemberEmail = (
       await addPanelUsers
         .find({ role: { $ne: "Admin" } }, { company_email_id: 1, _id: 0 })
@@ -3759,9 +3771,28 @@ const editCommercialData = async (req, res) => {
 
     console.log("panelMemberEmail", panelMemberEmail);
 
+    // 3. Prepare First Level Approval Update
+    const firstLevelUpdate = {
+      firstLevelApproval: {
+        hodName: formData.hod,
+        hodEmail: formData.hodEmail,
+        hodDepartment: formData.department,
+        status: "Pending",       // Always move to pending
+        approved: false,         // Reset approved status
+        approvedAt: null,        // Clear timestamp
+        remarks: ""              // Clear any remarks
+      }
+    };
+
+    // 4. Update commercials + update ONLY first level approval
     let updatedRequest = await CreateNewReq.findOneAndUpdate(
       { _id: reqId },
-      { $set: { commercials: formData } },
+      {
+        $set: {
+          commercials: formData,
+          ...firstLevelUpdate
+        }
+      },
       { new: true }
     );
 
@@ -3772,11 +3803,12 @@ const editCommercialData = async (req, res) => {
     }
 
     return res.status(201).json({
-      message: "Commercial data updated successfully.",
+      message: "Commercial data updated and First Level approval reset.",
       reqid: updatedRequest.reqid,
       employee: empData,
       panelEmails: panelMemberEmail,
     });
+
   } catch (err) {
     console.error("Error in saving the commercial data:", err);
     return res.status(500).json({
@@ -3785,6 +3817,7 @@ const editCommercialData = async (req, res) => {
     });
   }
 };
+
 
 const saveProcurementsData = async (req, res) => {
   try {
@@ -3994,7 +4027,7 @@ const saveAggrementData = async (req, res) => {
     updateData.departmentDeviations = Object.fromEntries(departmentDeviations);
     updateData.complinces = complinces;
     updateData.hasDeviations = hasDeviation ? 1 : 0;
-    updateData.riskAccepted = !hasDeviation;
+    updateData.riskAccepted = formData.riskAccepted;
 
     await updateData.save();
 

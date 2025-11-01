@@ -9,6 +9,7 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  FileSpreadsheet,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -89,6 +90,117 @@ const VendorListTable = () => {
     }
   };
 
+  const downloadSampleTemplate = () => {
+    // Define the required columns for the Excel template
+    const templateHeaders = [
+      "ID",
+      "Name",
+      "Primary Subsidiary",
+      "Category",
+      "Entity",
+      "Tax Number",
+      "GSTIN",
+      "Billing Address",
+      "Shipping Address",
+      "Phone",
+      "Email",
+      "Status",
+      "Bank Account Number",
+      "IFSC/SWIFT Code",
+      "Bank Name",
+      "Has Agreement",
+      "Agreement File",
+      "Questionnaire Answer",
+      "Nature of Service",
+      "MSME"
+    ];
+
+    // Create sample data rows with examples and instructions
+    const sampleData = [
+      {
+        "ID": "V001",
+        "Name": "Sample Vendor Ltd",
+        "Primary Subsidiary": "Main Office",
+        "Category": "Supplier",
+        "Entity": "Private Limited",
+        "Tax Number": "ABCDE1234F",
+        "GSTIN": "22ABCDE1234F1Z5",
+        "Billing Address": "123 Main Street, City, State - 123456",
+        "Shipping Address": "456 Warehouse Road, City, State - 123456",
+        "Phone": "9876543210",
+        "Email": "vendor@example.com",
+        "Status": "Active",
+        "Bank Account Number": "1234567890",
+        "IFSC/SWIFT Code": "ABCD0123456",
+        "Bank Name": "Sample Bank",
+        "Has Agreement": "yes",
+        "Agreement File": "(File upload handled separately after vendor creation)",
+        "Questionnaire Answer": "(Fill only if Has Agreement = no)",
+        "Nature of Service": "Product Supply",
+        "MSME": "MSME123456"
+      },
+      {
+        "ID": "V002",
+        "Name": "Example Services Inc",
+        "Primary Subsidiary": "Branch Office",
+        "Category": "Service Provider",
+        "Entity": "Corporation",
+        "Tax Number": "FGHIJ5678K",
+        "GSTIN": "27FGHIJ5678K1Z8",
+        "Billing Address": "789 Business Park, City, State - 654321",
+        "Shipping Address": "789 Business Park, City, State - 654321",
+        "Phone": "9123456789",
+        "Email": "contact@exampleservices.com",
+        "Status": "Active",
+        "Bank Account Number": "9876543210",
+        "IFSC/SWIFT Code": "EFGH0987654",
+        "Bank Name": "Example Bank",
+        "Has Agreement": "no",
+        "Agreement File": "",
+        "Questionnaire Answer": "We provide consulting services and have been in business for 5 years",
+        "Nature of Service": "Consulting",
+        "MSME": "MSME789012"
+      }
+    ];
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+
+    // Set column widths for better readability
+    const colWidths = [
+      { wch: 10 },  // ID
+      { wch: 25 },  // Name
+      { wch: 20 },  // Primary Subsidiary
+      { wch: 15 },  // Category
+      { wch: 15 },  // Entity
+      { wch: 15 },  // Tax Number
+      { wch: 18 },  // GSTIN
+      { wch: 40 },  // Billing Address
+      { wch: 40 },  // Shipping Address
+      { wch: 15 },  // Phone
+      { wch: 25 },  // Email
+      { wch: 12 },  // Status
+      { wch: 20 },  // Bank Account Number
+      { wch: 18 },  // IFSC/SWIFT Code
+      { wch: 20 },  // Bank Name
+      { wch: 15 },  // Has Agreement
+      { wch: 45 },  // Agreement File
+      { wch: 45 },  // Questionnaire Answer
+      { wch: 20 },  // Nature of Service
+      { wch: 15 },  // MSME
+    ];
+    ws['!cols'] = colWidths;
+
+    // Add the worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, "Vendor Template");
+
+    // Generate and download the file
+    XLSX.writeFile(wb, "Vendor_Upload_Template.xlsx");
+    
+    toast.success("Sample template downloaded successfully!");
+  };
+
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -153,9 +265,9 @@ const VendorListTable = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-lg p-4 sm:p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-base sm:text-lg font-medium">Import Vendors</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900">Import Vendors</h3>
             <button
               onClick={() => setShowImportModal(false)}
               className="text-gray-500 hover:text-gray-700"
@@ -165,28 +277,129 @@ const VendorListTable = () => {
             </button>
           </div>
 
+          {/* Required Format Section */}
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h4 className="font-semibold text-blue-900 mb-3 flex items-center">
+              <FileSpreadsheet className="h-5 w-5 mr-2" />
+              Required Excel Format
+            </h4>
+            <div className="text-sm text-blue-800 space-y-2">
+              <p className="font-medium">Your Excel file must include these columns:</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span><strong>ID</strong> - Vendor ID</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span><strong>Name</strong> - Company Name</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span><strong>Entity</strong> - Entity Type</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span><strong>Category</strong> - Vendor Category</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span><strong>Email</strong> - Email Address</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span><strong>Phone</strong> - Phone Number</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span><strong>Billing Address</strong> - Address</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span><strong>Tax Number</strong> - PAN/Tax/W9</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span><strong>GSTIN</strong> - GST Number</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span><strong>MSME</strong> - MSME Number</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span><strong>Bank Account Number</strong></span>
+                </div>
+                <div className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span><strong>IFSC/SWIFT Code</strong></span>
+                </div>
+                <div className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span><strong>Bank Name</strong></span>
+                </div>
+                <div className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span><strong>Has Agreement</strong> (yes/no)</span>
+                </div>
+                <div className="flex items-start">
+                  <span className="mr-2">•</span>
+                  <span><strong>Nature of Service</strong></span>
+                </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-blue-300">
+                <p className="text-xs text-blue-700">
+                  <strong>Note:</strong> Agreement files must be uploaded separately after vendor creation. 
+                  If "Has Agreement" is "no", fill the "Questionnaire Answer" column.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Download Template Button */}
+          <div className="mb-4">
+            <button
+              onClick={downloadSampleTemplate}
+              className="w-full flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              <Download className="h-5 w-5 mr-2" />
+              Download Sample Template
+            </button>
+          </div>
+
+          {/* File Upload Section */}
           <div className="space-y-4">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 sm:p-4">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+              <label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 mb-2">
+                Upload Your Excel File
+              </label>
               <input
+                id="file-upload"
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileUpload}
                 accept=".xlsx,.xls,.csv"
-                className="w-full text-sm"
+                className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90"
               />
-              <p className="text-xs sm:text-sm text-gray-500 mt-2">
+              <p className="text-xs text-gray-500 mt-2">
                 Supported formats: .xlsx, .xls, .csv
               </p>
               {newVendors.length > 0 && (
-                <p className="text-xs sm:text-sm text-green-600 mt-2">
-                  {newVendors.length} vendors ready to upload
-                </p>
+                <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded">
+                  <p className="text-sm text-green-700 font-medium">
+                    ✓ {newVendors.length} vendor{newVendors.length > 1 ? 's' : ''} ready to upload
+                  </p>
+                </div>
               )}
             </div>
 
+            {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row sm:justify-end space-y-2 sm:space-y-0 sm:space-x-3">
               <button
-                onClick={() => setShowImportModal(false)}
+                onClick={() => {
+                  setShowImportModal(false);
+                  setNewVendors([]);
+                }}
                 className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 order-2 sm:order-1"
               >
                 Cancel
@@ -194,7 +407,7 @@ const VendorListTable = () => {
               <button
                 onClick={uploadVendorData}
                 disabled={newVendors.length === 0}
-                className={`w-full sm:w-auto px-4 py-2 text-sm font-medium text-white rounded-lg order-1 sm:order-2
+                className={`w-full sm:w-auto px-4 py-2 text-sm font-medium text-white rounded-lg order-1 sm:order-2 transition-colors
             ${
               newVendors.length > 0
                 ? "bg-primary hover:bg-primary/90"

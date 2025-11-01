@@ -42,6 +42,8 @@ const AgreementCompliances = ({
         title: "",
         description: "",
     });
+    const [isRiskPopupOpen, setIsRiskPopupOpen] = useState(false);
+    const [riskModalChecked, setRiskModalChecked] = useState(false);
 
     useEffect(() => {
         const initializeData = async () => {
@@ -121,11 +123,20 @@ const AgreementCompliances = ({
                     }
                 });
 
+                // Determine if any answers differ from their expected defaults
+                const hasAnyChange = questionData.some((q, idx) => initialAnswers[idx] !== q.expectedAnswer);
+
                 // Set local state
                 setAnswers(initialAnswers);
                 setDeviations(initialDeviations);
                 setDepartmentDeviations(initialDeptDeviations);
                 setExpandedDepts(initialExpandedDepts);
+                // If server already has a value, respect it; otherwise infer from changes
+                const initialRiskAccepted =
+                    typeof formData.riskAccepted === "boolean"
+                        ? formData.riskAccepted
+                        : !hasAnyChange;
+                setRiskAccepted(initialRiskAccepted);
 
                 // Update formData with the finalized compliances
                 setFormData((prev) => ({
@@ -137,7 +148,7 @@ const AgreementCompliances = ({
                         ? 1
                         : 0,
                     departmentDeviations: initialDeptDeviations,
-                    riskAccepted: formData.riskAccepted || false,
+                    riskAccepted: initialRiskAccepted,
                 }));
 
                 setIsLoading(false);
@@ -215,6 +226,12 @@ const AgreementCompliances = ({
                     : 0,
             };
         });
+
+        // Update overall risk acceptance based on whether any answers differ from defaults
+        const updatedAnswers = { ...answers, [index]: value };
+        const hasAnyChange = questions.some((q, idx) => updatedAnswers[idx] !== q.expectedAnswer);
+        setRiskAccepted(!hasAnyChange);
+        setFormData((prev) => ({ ...prev, riskAccepted: !hasAnyChange }));
     };
 
     const handleDeviationChange = (index, field, value) => {
@@ -264,6 +281,21 @@ const AgreementCompliances = ({
         }
     };
 
+    const handleContinueClick = () => {
+        // If any answer changed from default, skip popup and submit with riskAccepted false
+        const hasAnyChange = questions.some((q, idx) => answers[idx] !== q.expectedAnswer);
+        if (hasAnyChange) {
+            setRiskAccepted(false);
+            setFormData((prev) => ({ ...prev, riskAccepted: false }));
+            handleSubmit(false);
+            return;
+        }
+
+        // No changes: show risk popup and pre-check based on current riskAccepted
+        setIsRiskPopupOpen(true);
+        setRiskModalChecked(riskAccepted ?? false);
+    };
+
     const handleRemoveFile = (index, fileUrl) => {
         const updatedAttachments = deviations[index]?.attachments.filter(
             (url) => url !== fileUrl
@@ -289,9 +321,19 @@ const AgreementCompliances = ({
         }));
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (overrideRiskAccepted = null) => {
         try {
             setSavingData(true);
+
+            // Guard: If answers are unchanged and risk not accepted, block submission and show popup
+            const unchanged = questions.every((q, idx) => answers[idx] === q.expectedAnswer);
+            const accepted = (overrideRiskAccepted ?? riskAccepted) === true;
+            if (unchanged && !accepted) {
+                setIsRiskPopupOpen(true);
+                setRiskModalChecked(false);
+                setSavingData(false);
+                return;
+            }
 
             // Make sure we're saving the complete updated form data
             const dataToSave = {
@@ -303,7 +345,7 @@ const AgreementCompliances = ({
                     ? 1
                     : 0,
                 departmentDeviations: { ...departmentDeviations },
-                riskAccepted: riskAccepted,
+                riskAccepted: overrideRiskAccepted ?? riskAccepted,
             };
 
             const response = await saveAggrementData(dataToSave, reqId);
@@ -706,35 +748,16 @@ const AgreementCompliances = ({
                     }
                 )}
 
-                <div className="p-6 bg-white border border-yellow-200 rounded-xl shadow-md">
-                    <div className="flex items-start gap-4">
-                        <AlertTriangle className="text-yellow-500 h-8 w-8 shrink-0 mt-0.5" />
-                        <div>
-                            <h4 className="text-xl font-semibold text-gray-800 mb-3">
-                                Risk Acknowledgment Required
-                            </h4>
+                {/* Inline risk acknowledgment hidden in edit; popup is used instead */}
 
-                            <label className="flex items-center gap-3 cursor-pointer p-4 bg-yellow-50 rounded-lg border border-yellow-100">
-                                <input
-                                    type="checkbox"
-                                    checked={riskAccepted}
-                                    onChange={handleRiskAcceptance}
-                                    className="w-5 h-5 text-primary rounded"
-                                />
-                                <span className="text-base font-medium text-gray-800">
-                                    The information provided above is accurate
-                                    to the best of my knowledge and has the
-                                    necessary agreement/legal confirmation.
-                                    However, if any discrepancies or
-                                    non-compliance with policies are identified
-                                    in the future, I acknowledge that the
-                                    associated risks and responsibilities will
-                                    be taken by me.
-                                </span>
-                            </label>
+                {questions.length > 0 &&
+                    questions.every((q, idx) => answers[idx] === q.expectedAnswer) &&
+                    riskAccepted && (
+                        <div className="mt-2 mb-2 flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+                            <Info size={16} className="text-green-600" />
+                            <span className="text-sm font-medium">You have accepted the risk.</span>
                         </div>
-                    </div>
-                </div>
+                    )}
 
                 <div className="flex justify-between pt-4 mb-8">
                     {/* <button
@@ -746,10 +769,10 @@ const AgreementCompliances = ({
                     </button> */}
                     <div></div>
                     <button
-                        onClick={handleSubmit}
-                        disabled={!riskAccepted || savingData}
+                        onClick={handleContinueClick}
+                        disabled={savingData}
                         className={`px-5 py-3 bg-primary text-white font-medium rounded-lg shadow-md flex items-center gap-2 ${
-                            !riskAccepted || savingData
+                            savingData
                                 ? "opacity-50 cursor-not-allowed"
                                 : "hover:bg-primary/90"
                         }`}
@@ -794,6 +817,50 @@ const AgreementCompliances = ({
                                 className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
                             >
                                 Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isRiskPopupOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Risk Acceptance</h3>
+                        <p className="text-gray-600 mb-4">
+                            Please acknowledge the risk to proceed to preview.
+                        </p>
+                        <label className="flex items-center gap-3 mb-4">
+                            <input
+                                type="checkbox"
+                                checked={riskModalChecked}
+                                onChange={(e) => setRiskModalChecked(e.target.checked)}
+                                className="w-5 h-5 text-primary rounded"
+                            />
+                            <span className="text-sm text-gray-800">
+                                I accept the risk and confirm the information is accurate to the best of my knowledge.
+                            </span>
+                        </label>
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setIsRiskPopupOpen(false)}
+                                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setRiskAccepted(true);
+                                    setFormData((prev) => ({ ...prev, riskAccepted: true }));
+                                    setIsRiskPopupOpen(false);
+                                    handleSubmit(true);
+                                }}
+                                disabled={!riskModalChecked}
+                                className={`px-4 py-2 rounded-lg text-white ${
+                                    riskModalChecked ? "bg-primary hover:bg-primary/90" : "bg-gray-300 cursor-not-allowed"
+                                }`}
+                            >
+                                Accept & Continue
                             </button>
                         </div>
                     </div>

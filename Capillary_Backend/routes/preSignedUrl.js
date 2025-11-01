@@ -26,9 +26,7 @@ s3Router.post("/upload", upload.array("files"), async (req, res) => {
     let newReqId;
     const { reqId } = req.query;
 
-    console.log("process.env.AWS_ACCESS_KEY_ID",process.env.AWS_ACCESS_KEY_ID)
-    console.log("process.env.AWS_SECRET_ACCESS_KEY",process.env.AWS_SECRET_ACCESS_KEY)
-    console.log("process.env.AWS_REGION",process.env.AWS_REGION)
+
 
 
     // Generate new reqId if not provided
@@ -89,6 +87,62 @@ s3Router.post("/upload", upload.array("files"), async (req, res) => {
       message: "Files uploaded successfully",
       fileUrls,
       newReqId, // Return the reqId used for this upload
+    });
+  } catch (error) {
+    console.error("Error uploading files:", error);
+    res.status(500).json({ error: "Failed to upload files" });
+  }
+});
+
+s3Router.post("/upload-vendor-details", upload.array("files"), async (req, res) => {
+  try {
+    const files = req.files;
+    const { fileType } = req.body;
+    const date = new Date();
+ 
+    // Ensure files are provided
+    if (!files || files.length === 0) {
+      return res.status(400).json({ error: "No files provided for upload" });
+    }
+
+    // Define the folder path in S3
+    const folder = `PO-Uploads/vendor-aggrement/${fileType}`;
+    console.log("Folder Path:", folder);
+
+    // Upload files to S3
+    const uploadPromises = files.map((file) => {
+      // Ensure each file name is unique (use timestamp for uniqueness)
+      const uniqueFileName = `${Date.now()}_${file.originalname}`;
+
+      const s3Params = {
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: `${folder}/${uniqueFileName}`,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      };
+
+      return s3.upload(s3Params).promise();
+    });
+
+    const results = await Promise.all(uploadPromises);
+
+    // Generate pre-signed URLs for each file uploaded
+    const fileUrls = results.map((result) => {
+      const params = {
+        Bucket: process.env.S3_BUCKET_NAME,
+        Key: result.Key,
+        Expires: 60 * 60 * 24 * 7,
+      };
+
+      // Generate pre-signed URL for the uploaded file
+      const signedUrl = s3.getSignedUrl("getObject", params);
+      return signedUrl;
+    });
+
+    // Respond with success and file URLs
+    res.status(200).json({
+      message: "Files uploaded successfully",
+      fileUrls,
     });
   } catch (error) {
     console.error("Error uploading files:", error);

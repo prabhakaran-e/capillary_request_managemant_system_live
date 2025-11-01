@@ -1,101 +1,178 @@
 import { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import {
-  getNewVendorId,
-  RegVendorData,
-} from "../../../api/service/adminServices";
+import { RegVendorData } from "../../../api/service/adminServices";
 import { toast, ToastContainer } from "react-toastify";
 import { useNavigate } from "react-router-dom";
+import uploadFilesVendor from "../../../utils/s3VendorUpload";
 
-// Updated Validation schema
+// Validation schema
 const validationSchema = Yup.object({
   vendorId: Yup.string().required("Vendor ID is required"),
-  vendorName: Yup.string().required("Vendor Name is required"),
-  phone: Yup.string().required("Phone Number is required"),
+  entity: Yup.string().required("Entity is required"),
+  category: Yup.string().required("Category is required"),
+  vendorName: Yup.string().required("Company Name is required"),
   email: Yup.string()
     .email("Invalid email format")
     .required("Email is required"),
-  billingAddress: Yup.string().required("Billing Address is required"),
+  phone: Yup.string().required("Phone Number is required"),
+  billingAddress: Yup.string().required("Address is required"),
+  taxNumber: Yup.string().required("PAN/Tax Registration/W9 is required"),
+  gstin: Yup.string().required("GST is required"),
+  msme: Yup.string().required("MSME is required"),
+  bankAccountNumber: Yup.string().required("Bank Account Number is required"),
+  ifscSwiftCode: Yup.string().required("IFSC/SWIFT CODE is required"),
+  bankName: Yup.string().required("Bank Name is required"),
+  hasAgreement: Yup.string().required("Agreement/EL selection is required"),
+  natureOfService: Yup.string().required("Nature of Service is required"),
+  agreementFile: Yup.mixed().when("hasAgreement", {
+    is: "yes",
+    then: (schema) => schema.required("Agreement file is required"),
+    otherwise: (schema) => schema.nullable(),
+  }),
+  questionnaireAnswer: Yup.string().when("hasAgreement", {
+    is: "no",
+    then: (schema) => schema.required("Questionnaire answer is required"),
+    otherwise: (schema) => schema.nullable(),
+  }),
 });
 
 const VendorRegistration = () => {
   const navigate = useNavigate();
-  const empId = localStorage.getItem("capEmpId")
-  const [formData, setFormData] = useState({
-    vendorId: "",
-    vendorName: "",
-    primarySubsidiary: "",
-    taxNumber: "",
-    gstin: "",
-    billingAddress: "",
-    shippingAddress: "",
-    phone: "",
-    email: "",
-    empId:empId
-  });
-
-  // Fetch Vendor ID on component mount
-  useEffect(() => {
-    const fetchVendorId = async () => {
-      try {
-        const response = await getNewVendorId();
-        if (response.status === 200) {
-          // Only update vendorId if it's not already set
-          setFormData((prevState) => ({
-            ...prevState,
-            vendorId: prevState.vendorId || response.data.vendorId,
-          }));
-        }
-      } catch (error) {
-        console.error("Failed to fetch Vendor ID:", error);
-      }
-    };
-    fetchVendorId();
-  }, []);
+  const empId = localStorage.getItem("capEmpId");
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
 
   const formik = useFormik({
-    initialValues: formData,
+    initialValues: {
+      vendorId: "",
+      entity: "",
+      category: "",
+      vendorName: "", // Maps to Company Name
+      email: "",
+      phone: "",
+      billingAddress: "", // Maps to Address
+      shippingAddress: "",
+      taxNumber: "", // Maps to PAN/Tax Registration/W9
+      gstin: "",
+      msme: "",
+      bankAccountNumber: "",
+      ifscSwiftCode: "",
+      bankName: "",
+      hasAgreement: "", // yes or no
+      agreementFile: null,
+      agreementFileUrl: "", // Store the S3 URL
+      agreementFileName: "", // Store the file name
+      questionnaireAnswer: "",
+      natureOfService: "",
+      primarySubsidiary: "",
+      empId: empId,
+    },
     validationSchema: validationSchema,
-    enableReinitialize: true,
     onSubmit: async (values) => {
       try {
-        console.log(values);
-        const response = await RegVendorData(values);
-        console.log(response);
+        let fileUrl = "";
+        let fileName = "";
+
+        // If hasAgreement is "yes" and there's a file, upload it to S3 first
+        if (values.hasAgreement === "yes" && values.agreementFile) {
+          setIsUploadingFile(true);
+          toast.info("Uploading agreement file to S3...");
+
+          try {
+            const uploadResponse = await uploadFilesVendor(
+              values.agreementFile,
+              "agreement"
+            );
+
+            console.log("Upload response:", uploadResponse);
+
+            if (uploadResponse.status === 200 && uploadResponse.data.fileUrls) {
+              fileUrl = uploadResponse.data.fileUrls[0]; // Get the first file URL
+              fileName = values.agreementFile.name;
+              toast.success("File uploaded successfully!");
+            }
+          } catch (uploadError) {
+            console.error("File upload failed:", uploadError);
+            toast.error("Failed to upload agreement file. Please try again.");
+            setIsUploadingFile(false);
+            return; // Stop submission if file upload fails
+          } finally {
+            setIsUploadingFile(false);
+          }
+        }
+
+        // Prepare data for submission (not FormData, just JSON object)
+        const vendorData = {
+          vendorId: values.vendorId,
+          entity: values.entity,
+          category: values.category,
+          vendorName: values.vendorName,
+          email: values.email,
+          phone: values.phone,
+          billingAddress: values.billingAddress,
+          shippingAddress: values.shippingAddress,
+          taxNumber: values.taxNumber,
+          gstin: values.gstin,
+          msme: values.msme,
+          bankAccountNumber: values.bankAccountNumber,
+          ifscSwiftCode: values.ifscSwiftCode,
+          bankName: values.bankName,
+          hasAgreement: values.hasAgreement,
+          agreementFileUrl: fileUrl, // S3 file URL
+          agreementFileName: fileName, // Original file name
+          questionnaireAnswer: values.questionnaireAnswer,
+          natureOfService: values.natureOfService,
+          primarySubsidiary: values.primarySubsidiary,
+          empId: values.empId,
+        };
+
+        console.log("Submitting vendor data:", vendorData);
+        const response = await RegVendorData(vendorData);
+
         if (response.status === 201) {
-          toast.success(response.data.message);
+          toast.success(
+            response.data.message || "Vendor registered successfully!"
+          );
           setTimeout(() => {
             navigate("/vendor-list-table");
           }, 1500);
         }
-
-        setFormData({
-          vendorId: "",
-          vendorName: "",
-          primarySubsidiary: "",
-          taxNumber: "",
-          gstin: "",
-          billingAddress: "",
-          shippingAddress: "",
-          phone: "",
-          email: "",
-        });
       } catch (error) {
         console.error("Registration failed:", error);
-        toast.error("Registration failed. Please try again.");
+        toast.error(
+          error.response?.data?.message ||
+            "Registration failed. Please try again."
+        );
       }
     },
   });
 
-  // Function to handle manual vendor ID input
-  const handleVendorIdChange = (e) => {
-    const newVendorId = e.target.value;
-    setFormData((prevState) => ({
-      ...prevState,
-      vendorId: newVendorId,
-    }));
-    formik.handleChange(e);
+  // Handle file upload
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file size (e.g., max 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        toast.error("File size should not exceed 10MB");
+        e.target.value = ""; // Clear the input
+        return;
+      }
+
+      // Validate file type
+      const allowedTypes = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error("Only PDF, DOC, and DOCX files are allowed");
+        e.target.value = ""; // Clear the input
+        return;
+      }
+
+      formik.setFieldValue("agreementFile", file);
+    }
   };
 
   return (
@@ -107,16 +184,17 @@ const VendorRegistration = () => {
         Vendor Registration
       </h2>
 
+      {/* Vendor ID - Manual Entry */}
       <div className="p-4 border rounded-lg border-primary">
-        <label htmlFor="vendorId">
+        <label htmlFor="vendorId" className="block mb-2 font-medium">
           Vendor ID <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
           name="vendorId"
-          placeholder="Vendor ID"
+          placeholder="Enter Vendor ID"
           value={formik.values.vendorId}
-          onChange={handleVendorIdChange}
+          onChange={formik.handleChange}
           onBlur={formik.handleBlur}
           className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
         />
@@ -125,16 +203,61 @@ const VendorRegistration = () => {
         )}
       </div>
 
+      {/* Basic Information */}
       <div className="p-4 border rounded-lg border-primary">
+        <h3 className="text-lg font-semibold text-primary mb-4">
+          Basic Information
+        </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Entity */}
           <div>
-            <label htmlFor="vendorName">
-              Vendor Name <span className="text-red-500">*</span>
+            <label htmlFor="entity" className="block mb-2 font-medium">
+              Entity <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="entity"
+              placeholder="Enter Entity"
+              value={formik.values.entity}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.touched.entity && formik.errors.entity && (
+              <span className="text-red-500 text-sm">{formik.errors.entity}</span>
+            )}
+          </div>
+
+          {/* Category */}
+          <div>
+            <label htmlFor="category" className="block mb-2 font-medium">
+              Category <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="category"
+              placeholder="Enter Category"
+              value={formik.values.category}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.touched.category && formik.errors.category && (
+              <span className="text-red-500 text-sm">
+                {formik.errors.category}
+              </span>
+            )}
+          </div>
+
+          {/* Company Name (vendorName) */}
+          <div>
+            <label htmlFor="vendorName" className="block mb-2 font-medium">
+              Company Name <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               name="vendorName"
-              placeholder="Vendor Name"
+              placeholder="Enter Company Name"
               value={formik.values.vendorName}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
@@ -146,81 +269,187 @@ const VendorRegistration = () => {
               </span>
             )}
           </div>
+
+          {/* Email */}
           <div>
-            <label htmlFor="primarySubsidiary">Primary Subsidiary</label>
-            <input
-              type="text"
-              name="primarySubsidiary"
-              placeholder="Primary Subsidiary"
-              value={formik.values.primarySubsidiary}
-              onChange={formik.handleChange}
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label htmlFor="phone">
-              Phone Number <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="tel"
-              name="phone"
-              placeholder="Phone Number"
-              value={formik.values.phone}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            {formik.touched.phone && formik.errors.phone && (
-              <span className="text-red-500 text-sm">
-                {formik.errors.phone}
-              </span>
-            )}
-          </div>
-          <div>
-            <label htmlFor="email">
-              Email <span className="text-red-500">*</span>
+            <label htmlFor="email" className="block mb-2 font-medium">
+              Email-ID <span className="text-red-500">*</span>
             </label>
             <input
               type="email"
               name="email"
-              placeholder="Email"
+              placeholder="Enter Email"
               value={formik.values.email}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
               className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
             />
             {formik.touched.email && formik.errors.email && (
+              <span className="text-red-500 text-sm">{formik.errors.email}</span>
+            )}
+          </div>
+
+          {/* Phone Number */}
+          <div>
+            <label htmlFor="phone" className="block mb-2 font-medium">
+              Phone Number <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="tel"
+              name="phone"
+              placeholder="Enter Phone Number"
+              value={formik.values.phone}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.touched.phone && formik.errors.phone && (
+              <span className="text-red-500 text-sm">{formik.errors.phone}</span>
+            )}
+          </div>
+
+          {/* Nature of Service */}
+          <div>
+            <label htmlFor="natureOfService" className="block mb-2 font-medium">
+              Nature of Service <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="natureOfService"
+              placeholder="Enter Nature of Service"
+              value={formik.values.natureOfService}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.touched.natureOfService && formik.errors.natureOfService && (
               <span className="text-red-500 text-sm">
-                {formik.errors.email}
+                {formik.errors.natureOfService}
               </span>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Address */}
+      <div className="p-4 border rounded-lg border-primary">
+        <h3 className="text-lg font-semibold text-primary mb-4">
+          Address Details
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Billing Address (Address) */}
           <div>
-            <label htmlFor="gstin">
-              GSTIN 
+            <label htmlFor="billingAddress" className="block mb-2 font-medium">
+              Address <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              name="billingAddress"
+              placeholder="Enter Address"
+              value={formik.values.billingAddress}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              rows="3"
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.touched.billingAddress && formik.errors.billingAddress && (
+              <span className="text-red-500 text-sm">
+                {formik.errors.billingAddress}
+              </span>
+            )}
+          </div>
+
+          {/* Shipping Address (Optional) */}
+          <div>
+            <label htmlFor="shippingAddress" className="block mb-2 font-medium">
+              Shipping Address
+            </label>
+            <textarea
+              name="shippingAddress"
+              placeholder="Enter Shipping Address"
+              value={formik.values.shippingAddress}
+              onChange={formik.handleChange}
+              rows="3"
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Tax & Registration Details */}
+      <div className="p-4 border rounded-lg border-primary">
+        <h3 className="text-lg font-semibold text-primary mb-4">
+          Tax & Registration Details
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* PAN/Tax Registration/W9 (taxNumber) */}
+          <div>
+            <label htmlFor="taxNumber" className="block mb-2 font-medium">
+              PAN/Tax Registration/W9 <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="taxNumber"
+              placeholder="Enter PAN/Tax Registration/W9"
+              value={formik.values.taxNumber}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.touched.taxNumber && formik.errors.taxNumber && (
+              <span className="text-red-500 text-sm">
+                {formik.errors.taxNumber}
+              </span>
+            )}
+          </div>
+
+          {/* GST */}
+          <div>
+            <label htmlFor="gstin" className="block mb-2 font-medium">
+              GST <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               name="gstin"
-              placeholder="GSTIN"
+              placeholder="Enter GST Number"
               value={formik.values.gstin}
               onChange={formik.handleChange}
               onBlur={formik.handleBlur}
               className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
             />
             {formik.touched.gstin && formik.errors.gstin && (
-              <span className="text-red-500 text-sm">
-                {formik.errors.gstin}
-              </span>
+              <span className="text-red-500 text-sm">{formik.errors.gstin}</span>
             )}
           </div>
+
+          {/* MSME */}
           <div>
-            <label htmlFor="taxNumber">Tax Number</label>
+            <label htmlFor="msme" className="block mb-2 font-medium">
+              MSME <span className="text-red-500">*</span>
+            </label>
             <input
               type="text"
-              name="taxNumber"
-              placeholder="Tax Number"
-              value={formik.values.taxNumber}
+              name="msme"
+              placeholder="Enter MSME Number"
+              value={formik.values.msme}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.touched.msme && formik.errors.msme && (
+              <span className="text-red-500 text-sm">{formik.errors.msme}</span>
+            )}
+          </div>
+
+          {/* Primary Subsidiary (Optional) */}
+          <div>
+            <label htmlFor="primarySubsidiary" className="block mb-2 font-medium">
+              Primary Subsidiary
+            </label>
+            <input
+              type="text"
+              name="primarySubsidiary"
+              placeholder="Enter Primary Subsidiary"
+              value={formik.values.primarySubsidiary}
               onChange={formik.handleChange}
               className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -228,53 +457,188 @@ const VendorRegistration = () => {
         </div>
       </div>
 
-      <div>
-        <h2 className="text-lg text-primary mb-2">Address</h2>
-        <div className="p-4 border w-full rounded-lg border-primary">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="billingAddress">
-                Billing Address <span className="text-red-500">*</span>
-              </label>
-              <textarea
-                name="billingAddress"
-                placeholder="Billing Address"
-                value={formik.values.billingAddress}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              {formik.touched.billingAddress &&
-                formik.errors.billingAddress && (
-                  <span className="text-red-500 text-sm">
-                    {formik.errors.billingAddress}
-                  </span>
-                )}
-            </div>
-            <div>
-              <label htmlFor="shippingAddress">Shipping Address</label>
-              <textarea
-                name="shippingAddress"
-                placeholder="Shipping Address"
-                value={formik.values.shippingAddress}
-                onChange={formik.handleChange}
-                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
+      {/* Bank Details */}
+      <div className="p-4 border rounded-lg border-primary">
+        <h3 className="text-lg font-semibold text-primary mb-4">Bank Details</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Bank Account Number */}
+          <div>
+            <label htmlFor="bankAccountNumber" className="block mb-2 font-medium">
+              Bank Account Number <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="bankAccountNumber"
+              placeholder="Enter Bank Account Number"
+              value={formik.values.bankAccountNumber}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.touched.bankAccountNumber &&
+              formik.errors.bankAccountNumber && (
+                <span className="text-red-500 text-sm">
+                  {formik.errors.bankAccountNumber}
+                </span>
+              )}
+          </div>
+
+          {/* IFSC/SWIFT CODE */}
+          <div>
+            <label htmlFor="ifscSwiftCode" className="block mb-2 font-medium">
+              IFSC/SWIFT CODE <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="ifscSwiftCode"
+              placeholder="Enter IFSC/SWIFT CODE"
+              value={formik.values.ifscSwiftCode}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.touched.ifscSwiftCode && formik.errors.ifscSwiftCode && (
+              <span className="text-red-500 text-sm">
+                {formik.errors.ifscSwiftCode}
+              </span>
+            )}
+          </div>
+
+          {/* Bank Name */}
+          <div>
+            <label htmlFor="bankName" className="block mb-2 font-medium">
+              Bank Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="bankName"
+              placeholder="Enter Bank Name"
+              value={formik.values.bankName}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.touched.bankName && formik.errors.bankName && (
+              <span className="text-red-500 text-sm">
+                {formik.errors.bankName}
+              </span>
+            )}
           </div>
         </div>
+      </div>
+
+      {/* Agreement/EL Section */}
+      <div className="p-4 border rounded-lg border-primary">
+        <h3 className="text-lg font-semibold text-primary mb-4">Agreement/EL</h3>
+
+        {/* Agreement Yes/No Selection */}
+        <div className="mb-4">
+          <label className="block mb-2 font-medium">
+            Do you have an Agreement/EL? <span className="text-red-500">*</span>
+          </label>
+          <div className="flex gap-6">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="hasAgreement"
+                value="yes"
+                checked={formik.values.hasAgreement === "yes"}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="mr-2"
+              />
+              Yes
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="hasAgreement"
+                value="no"
+                checked={formik.values.hasAgreement === "no"}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className="mr-2"
+              />
+              No
+            </label>
+          </div>
+          {formik.touched.hasAgreement && formik.errors.hasAgreement && (
+            <span className="text-red-500 text-sm">
+              {formik.errors.hasAgreement}
+            </span>
+          )}
+        </div>
+
+        {/* Conditional: Upload File if Yes */}
+        {formik.values.hasAgreement === "yes" && (
+          <div>
+            <label htmlFor="agreementFile" className="block mb-2 font-medium">
+              Upload Agreement File <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="file"
+              name="agreementFile"
+              accept=".pdf,.doc,.docx"
+              onChange={handleFileChange}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.values.agreementFile && (
+              <p className="text-sm text-green-600 mt-1">
+                ✓ Selected: {formik.values.agreementFile.name}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Supported formats: PDF, DOC, DOCX (Max size: 10MB)
+            </p>
+            {formik.touched.agreementFile && formik.errors.agreementFile && (
+              <span className="text-red-500 text-sm">
+                {formik.errors.agreementFile}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Conditional: Text Input if No */}
+        {formik.values.hasAgreement === "no" && (
+          <div>
+            <label htmlFor="questionnaireAnswer" className="block mb-2 font-medium">
+              Fill the Questionnaire <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              name="questionnaireAnswer"
+              placeholder="Enter your questionnaire answer"
+              value={formik.values.questionnaireAnswer}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              rows="4"
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.touched.questionnaireAnswer &&
+              formik.errors.questionnaireAnswer && (
+                <span className="text-red-500 text-sm">
+                  {formik.errors.questionnaireAnswer}
+                </span>
+              )}
+          </div>
+        )}
       </div>
 
       {/* Submit Button */}
       <div className="p-4 text-end">
         <button
           type="submit"
-          className="px-6 py-2 bg-primary text-white rounded"
-          disabled={formik.isSubmitting || !formik.isValid}
+          className="px-6 py-2 bg-primary text-white rounded hover:bg-primary-dark disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          disabled={formik.isSubmitting || !formik.isValid || isUploadingFile}
         >
-          Register Vendor
+          {isUploadingFile
+            ? "Uploading File..."
+            : formik.isSubmitting
+            ? "Registering..."
+            : "Register Vendor"}
         </button>
       </div>
+
       <ToastContainer
         position="top-right"
         autoClose={5000}

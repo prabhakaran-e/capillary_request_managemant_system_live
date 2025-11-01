@@ -7,6 +7,9 @@ import {
   DollarSign,
   Info,
   User,
+  FileText,
+  Download,
+  ExternalLink,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -28,13 +31,114 @@ const DataCard = ({ title, value }) => (
   </div>
 );
 
+const FileCard = ({ fileUrl }) => {
+  // Extract filename from S3 URL
+  const getFileNameFromUrl = (url) => {
+    if (!url) return "agreement-file.pdf";
+    try {
+      const urlParts = url.split("/");
+      const fileNameWithParams = urlParts[urlParts.length - 1];
+      const fileName = fileNameWithParams.split("?")[0]; // Remove query parameters
+      // Extract original filename after timestamp (format: timestamp_originalname.ext)
+      const parts = fileName.split("_");
+      if (parts.length > 1) {
+        return decodeURIComponent(parts.slice(1).join("_")); // Join back if filename had underscores
+      }
+      return decodeURIComponent(fileName);
+    } catch (error) {
+      return "agreement-file.pdf";
+    }
+  };
+
+  const fileName = getFileNameFromUrl(fileUrl);
+
+  const handleDownload = () => {
+    if (!fileUrl) return;
+    // Create a temporary link to download the file
+    const link = document.createElement("a");
+    link.href = fileUrl;
+    link.download = fileName;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleView = () => {
+    if (!fileUrl) return;
+    // Open file in new tab with security attributes
+    window.open(fileUrl, "_blank", "noopener,noreferrer");
+  };
+
+  if (!fileUrl) {
+    return (
+      <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+        <p className="text-sm text-gray-500">No agreement file available</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg shadow-sm p-4 border border-blue-200 hover:border-blue-300 hover:shadow-md transition-all">
+      <div className="flex items-start justify-between">
+        <div className="flex items-start gap-3 flex-1">
+          <div className="p-2 bg-blue-100 rounded-lg">
+            <FileText className="h-6 w-6 text-blue-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-gray-500 mb-1">
+              Agreement File
+            </div>
+            <div className="text-base font-semibold text-gray-900 break-words">
+              {fileName}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              Stored in S3
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={handleView}
+                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors"
+              >
+                <ExternalLink className="h-4 w-4" />
+                View
+              </button>
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-1 px-3 py-1.5 bg-white border border-blue-200 text-blue-600 text-sm rounded-md hover:bg-blue-50 transition-colors"
+              >
+                <Download className="h-4 w-4" />
+                Download
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const VendorPreview = () => {
   const { vendorId } = useParams();
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const excludeKeys = ["_id", "uploadedAt", "lastModified", "updatedAt"];
+  const excludeKeys = [
+    "_id",
+    "uploadedAt",
+    "lastModified",
+    "updatedAt",
+    "createdAt",
+    "agreementFile",
+    "agreementFileName",
+    "agreementFileUrl",
+    "hasAgreement",
+    "questionnaireAnswer",
+    "__v",
+    "empId",
+  ];
 
   // Define structured sections with proper field mapping
   const sections = {
@@ -43,8 +147,11 @@ const VendorPreview = () => {
       title: "Company Information",
       fields: [
         { key: "vendorId", label: "Vendor ID" },
-        { key: "vendorName", label: "Vendor Name" },
+        { key: "vendorName", label: "Company Name" },
+        { key: "entity", label: "Entity" },
+        { key: "category", label: "Category" },
         { key: "primarySubsidiary", label: "Primary Subsidiary" },
+        { key: "natureOfService", label: "Nature of Service" },
         { key: "status", label: "Status" },
       ],
     },
@@ -60,16 +167,26 @@ const VendorPreview = () => {
       icon: MapPin,
       title: "Address Information",
       fields: [
-        { key: "billingAddress", label: "Billing Address" },
+        { key: "billingAddress", label: "Address" },
         { key: "shippingAddress", label: "Shipping Address" },
       ],
     },
     financial: {
       icon: DollarSign,
-      title: "Financial Information",
+      title: "Tax & Financial Information",
       fields: [
-        { key: "taxNumber", label: "Tax Number" },
-        { key: "gstin", label: "GSTIN" },
+        { key: "taxNumber", label: "PAN/Tax Registration/W9" },
+        { key: "gstin", label: "GST" },
+        { key: "msme", label: "MSME" },
+      ],
+    },
+    banking: {
+      icon: Building2,
+      title: "Bank Details",
+      fields: [
+        { key: "bankAccountNumber", label: "Bank Account Number" },
+        { key: "ifscSwiftCode", label: "IFSC/SWIFT CODE" },
+        { key: "bankName", label: "Bank Name" },
       ],
     },
   };
@@ -78,6 +195,7 @@ const VendorPreview = () => {
     const fetchVendorDetails = async () => {
       try {
         const response = await getVenorIndividualData(vendorId);
+        console.log("Vendor data:", response.data);
         setData(response.data);
       } catch (error) {
         console.error("Error fetching vendor details:", error);
@@ -156,6 +274,22 @@ const VendorPreview = () => {
     );
   }
 
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <p className="text-lg font-medium text-gray-600">Vendor not found</p>
+          <button
+            onClick={() => navigate(-1)}
+            className="mt-4 text-primary hover:underline"
+          >
+            Go back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -178,6 +312,16 @@ const VendorPreview = () => {
                   Active
                 </span>
               )}
+              {data.status === "Pending" && (
+                <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">
+                  Pending
+                </span>
+              )}
+              {data.status === "Inactive" && (
+                <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium">
+                  Inactive
+                </span>
+              )}
             </div>
           </div>
 
@@ -196,7 +340,8 @@ const VendorPreview = () => {
                   data &&
                   data.hasOwnProperty(field.key) &&
                   data[field.key] !== null &&
-                  data[field.key] !== undefined
+                  data[field.key] !== undefined &&
+                  data[field.key] !== ""
               );
 
               if (sectionFields.length === 0) return null;
@@ -225,6 +370,48 @@ const VendorPreview = () => {
             }
           )}
 
+          {/* Agreement/EL Section */}
+          {data.hasAgreement && (
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <SectionHeader icon={FileText} title="Agreement/EL" />
+
+              {data.hasAgreement === "yes" && (
+                <div className="space-y-4">
+                  {data.agreementFileUrl ? (
+                    <FileCard fileUrl={data.agreementFileUrl} />
+                  ) : (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <p className="text-sm text-yellow-800">
+                        Agreement file URL not available
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {data.hasAgreement === "no" && (
+                <div>
+                  {data.questionnaireAnswer ? (
+                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div className="text-sm font-medium text-gray-500 mb-2">
+                        Questionnaire Answer
+                      </div>
+                      <div className="text-base text-gray-900 whitespace-pre-wrap">
+                        {data.questionnaireAnswer}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <p className="text-sm text-gray-500">
+                        No questionnaire answer provided
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Additional Information Section */}
           {getRemainingFields().length > 0 && (
             <div className="bg-white rounded-lg shadow-sm p-6">
@@ -244,8 +431,13 @@ const VendorPreview = () => {
 
         {/* Footer */}
         <div className="mt-8 text-center text-sm text-gray-500">
-          Last Modified: {formatValue(data.lastModified)} • Uploaded:{" "}
-          {formatValue(data.uploadedAt)}
+          {data.createdAt && (
+            <>
+              Created: {formatValue(data.createdAt)}
+              {data.updatedAt && " • "}
+            </>
+          )}
+          {data.updatedAt && <>Last Updated: {formatValue(data.updatedAt)}</>}
         </div>
       </div>
     </div>

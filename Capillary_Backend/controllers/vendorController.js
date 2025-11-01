@@ -22,40 +22,41 @@ exports.createNewVendor = async (req, res) => {
     const vendorDataArray = req.body.data.map(async (vendor) => {
       const vendorId = vendor.ID;
 
+      const vendorPayload = {
+        vendorName: vendor.Name,
+        primarySubsidiary: vendor["Primary Subsidiary"],
+        category: vendor.Category,                      // Added
+        entity: vendor.Entity,                          // Added
+        taxNumber: vendor["Tax Number"],
+        gstin: vendor.GSTIN,
+        billingAddress: vendor["Billing Address"],
+        shippingAddress: vendor["Shipping Address"],
+        phone: vendor.Phone,
+        email: vendor.Email || "",
+        status: vendor.Status || "Active",
+        
+        bankAccountNumber: vendor["Bank Account Number"],   // Added
+        ifscSwiftCode: vendor["IFSC/SWIFT Code"],           // Added
+        bankName: vendor["Bank Name"],                      // Added
+
+        hasAgreement: vendor["Has Agreement"],              // Added
+        agreementFile: vendor["Agreement File"] || null,    // Added
+        questionnaireAnswer: vendor["Questionnaire Answer"],// Added
+        natureOfService: vendor["Nature of Service"],       // Added
+
+        empId
+      };
+
       const existingVendor = await Vendor.findOne({ vendorId });
 
       if (existingVendor) {
-        // Update existing vendor
         return await Vendor.findOneAndUpdate(
           { vendorId },
-          {
-            vendorName: vendor.Name,
-            primarySubsidiary: vendor["Primary Subsidiary"],
-            taxNumber: vendor["Tax Number"],
-            gstin: vendor.GSTIN,
-            billingAddress: vendor["Billing Address"],
-            shippingAddress: vendor["Shipping Address"],
-            phone: vendor.Phone,
-            status: vendor.Status || "Active",
-            email: vendor.Email || "",
-          },
+          vendorPayload,
           { new: true, runValidators: true }
         );
       } else {
-        // Create new vendor
-        return await Vendor.create({
-          vendorId,
-          vendorName: vendor.Name,
-          primarySubsidiary: vendor["Primary Subsidiary"],
-          taxNumber: vendor["Tax Number"],
-          gstin: vendor.GSTIN,
-          billingAddress: vendor["Billing Address"],
-          shippingAddress: vendor["Shipping Address"],
-          phone: vendor.Phone,
-          status: vendor.Status || "Active",
-          email: vendor.Email || "",
-          empId,
-        });
+        return await Vendor.create({ vendorId, ...vendorPayload });
       }
     });
 
@@ -75,6 +76,7 @@ exports.createNewVendor = async (req, res) => {
     });
   }
 };
+
 
 // Read all vendors
 exports.getAllVendors = async (req, res) => {
