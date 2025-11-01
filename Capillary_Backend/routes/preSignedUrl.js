@@ -25,7 +25,10 @@ s3Router.post("/upload", upload.array("files"), async (req, res) => {
     let newReqId;
     const { reqId } = req.query;
 
-    console.log("Received ReqId:", reqId);
+    console.log("process.env.AWS_ACCESS_KEY_ID",process.env.AWS_ACCESS_KEY_ID)
+    console.log("process.env.AWS_SECRET_ACCESS_KEY",process.env.AWS_SECRET_ACCESS_KEY)
+    console.log("process.env.AWS_REGION",process.env.AWS_REGION)
+
 
     // Generate new reqId if not provided
     if (!reqId || reqId === "undefined") {
