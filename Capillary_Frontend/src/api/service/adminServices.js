@@ -669,12 +669,13 @@ export const getNewNotification = async (userId) => {
   }
 };
 
-export const getApprovedReq = async (userId, showPendingOnly) => {
+export const getApprovedReq = async (userId, showPendingOnly = false) => {
   try {
+    const flag = typeof showPendingOnly === "boolean" ? showPendingOnly : false;
     const response = await adminServices.get(
-      `/request/get-approved-req/${userId}?showPendingOnly=${showPendingOnly}`
+      `/request/get-approved-req/${userId}`,
+      { params: { showPendingOnly: flag } }
     );
-
     return response;
   } catch (err) {
     return err;
@@ -750,11 +751,11 @@ export const getReqReports = async () => {
   }
 };
 
-export const addPODocument = async (empId, reqId, link,poNumber) => {
+export const addPODocument = async (empId, reqId, link, poNumber) => {
   try {
     const response = await adminServices.put(
       `/request/upload-po-documents/${empId}/${reqId}`,
-      { link,poNumber }
+      { link, poNumber }
     );
     return response;
   } catch (err) {
@@ -762,11 +763,11 @@ export const addPODocument = async (empId, reqId, link,poNumber) => {
   }
 };
 
-export const addInvoiceDocument = async (empId, reqId, link,invoiceNumber) => {
+export const addInvoiceDocument = async (empId, reqId, link, invoiceNumber) => {
   try {
     const response = await adminServices.put(
       `/request/upload-invoice-documents/${empId}/${reqId}`,
-      { link ,invoiceNumber}
+      { link, invoiceNumber }
     );
     return response;
   } catch (err) {
@@ -1297,7 +1298,7 @@ export const getSmtpConfig = async () => {
 };
 
 
-export const deleteSmtpConfiguration = async (id,empId) => {
+export const deleteSmtpConfiguration = async (id, empId) => {
   try {
     const response = await adminServices.delete(`/create-smtp/delete-smtp-data/${id}/${empId}`);
     return response;
@@ -1316,7 +1317,7 @@ export const getPoData = async () => {
   }
 };
 
-export const deletePOData = async (id,empId) => {
+export const deletePOData = async (id, empId) => {
   try {
     const response = await adminServices.delete(
       `/purchase-order/delete-po-data/${id}/${empId}`
@@ -1330,7 +1331,7 @@ export const deletePOData = async (id,empId) => {
 export const updatePOData = async (editingId, newEntry, empId) => {
   try {
     const response = await adminServices.put(
-      `/purchase-order/update-po-data/${editingId}/${empId}`,{newEntry}
+      `/purchase-order/update-po-data/${editingId}/${empId}`, { newEntry }
     );
     return response;
   } catch (err) {
@@ -1339,11 +1340,11 @@ export const updatePOData = async (editingId, newEntry, empId) => {
 };
 
 
-export const getFilteredRequests = async ({userId, status, department,fromDate,toDate}) => {
-  console.log(userId, status, department,fromDate,toDate)
+export const getFilteredRequests = async ({ userId, status, department, fromDate, toDate }) => {
+  console.log(userId, status, department, fromDate, toDate)
   try {
     const response = await adminServices.post(
-      `/request/get-filtered-request/${userId}`,{status, department,fromDate,toDate}
+      `/request/get-filtered-request/${userId}`, { status, department, fromDate, toDate }
     );
     return response;
   } catch (err) {

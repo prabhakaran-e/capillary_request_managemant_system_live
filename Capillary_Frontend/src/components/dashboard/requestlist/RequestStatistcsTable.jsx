@@ -229,8 +229,8 @@ const RequestStatistcsTable = () => {
                 if (showAll || action === "Total-Request") {
                     setUsers(response.data.data);
                 } else {
-                    const filteredData = response.data.data.filter(
-                        (item) => filterAction.includes(item.status) // Check if status is in the array
+                    const filteredData = response.data.data.filter((item) =>
+                        filterAction.includes(item.status)
                     );
                     setUsers(filteredData);
                 }
@@ -257,185 +257,219 @@ const RequestStatistcsTable = () => {
 
                         if (showAll) {
                             setUsers(response.data.reqData);
-                        } else if (action === newStatus) {
-                            console.log("0");
+                        } else if (action === "Total-Approvals") {
+                            // For Total-Approvals: Show all requests where nextDepartment matches user's role or department
+                            console.log("Total-Approvals filtering");
                             const filteredData = response.data.reqData.filter(
-                                (items) =>
-                                    items.approvals.some((app) => {
-                                        console.log(app.status);
-                                        return app.status === filterAction;
-                                    })
+                                (item) => {
+                                    const matchesDepartment =
+                                        item.nextDepartment === role ||
+                                        item.nextDepartment === department;
+
+                                    console.log(`ReqID: ${item.reqid}, NextDept: ${item.nextDepartment}, UserRole: ${role}, UserDept: ${department}, Matches: ${matchesDepartment}`);
+
+                                    return matchesDepartment;
+                                }
                             );
+                            console.log("Total-Approvals filtered data:", filteredData.length);
                             setUsers(filteredData);
-                        } else if (
-                            action === "Pending-Approvals" ||
-                            action === "OnHold-Approvals" ||
-                            action === "Rejected-Approvals"
-                        ) {
-                            console.log("Inside pending approvals");
+
+                        } else if (action === "Pending-Approvals") {
+                            // For Pending-Approvals: Show pending requests for user's department
+                            console.log("Pending-Approvals filtering");
+
                             if (role === "HOD Department" || role === "Admin") {
-                                console.log("1");
-                                let filteredData;
-                                if (action === "OnHold-Approvals") {
-                                    filteredData = response.data.reqData.filter(
-                                        (items) =>
-                                            ["Hold"].includes(
-                                                items.firstLevelApproval.status
-                                            )
-                                    );
-                                } else if (action === "Rejected-Approvals") {
-                                    filteredData = response.data.reqData.filter(
-                                        (items) =>
-                                            ["Rejected"].includes(
-                                                items.firstLevelApproval.status
-                                            )
-                                    );
-                                } else {
-                                    filteredData = response.data.reqData.filter(
-                                        (items) =>
-                                            [
-                                                "Pending",
+                                // HOD sees all pending requests in their department
+                                const filteredData = response.data.reqData.filter(
+                                    (items) => {
+                                        const isPending = [
+                                            "Pending",
+                                            "PO-Pending",
+                                            "Invoice-Pending",
+                                        ].includes(items.firstLevelApproval.status);
 
-                                                "PO-Pending",
-                                                "Invoice-Pending",
-                                            ].includes(
-                                                items.firstLevelApproval.status
-                                            )
-                                    );
-                                }
+                                        const matchesDepartment =
+                                            items.nextDepartment === role ||
+                                            items.nextDepartment === department;
 
+                                        return isPending && matchesDepartment;
+                                    }
+                                );
                                 setUsers(filteredData);
-                                setFilteredUsers(filteredData);
+
                             } else {
-                                console.log("2", response.data.reqData);
-                                let filteredByApprovals = [];
-                                if (action === "OnHold-Approvals") {
-                                    filteredByApprovals =
-                                        response.data.reqData.filter(
-                                            (items) =>
-                                                items.approvals &&
-                                                items.approvals.some(
-                                                    (app, index, arr) => {
-                                                        const isPending =
-                                                            app.approvalId ===
-                                                                userId &&
-                                                            app.status ===
-                                                                "Hold";
+                                // Other roles see pending requests assigned to their department
+                                let filteredByApprovals = response.data.reqData.filter(
+                                    (items) => {
+                                        // Check if nextDepartment matches user's role or department
+                                        const matchesDepartment =
+                                            items.nextDepartment === role ||
+                                            items.nextDepartment === department;
 
-                                                        const isLatestApproval =
-                                                            index ===
-                                                            arr.length - 1;
+                                        if (!matchesDepartment) return false;
 
-                                                        return (
-                                                            isPending &&
-                                                            isLatestApproval
-                                                        );
-                                                    }
-                                                )
-                                        );
-                                } else if (action === "Rejected-Approvals") {
-                                    filteredByApprovals =
-                                        response.data.reqData.filter(
-                                            (items) =>
-                                                items.approvals &&
-                                                items.approvals.some(
-                                                    (app, index, arr) => {
-                                                        const isPending =
-                                                            app.approvalId ===
-                                                                userId &&
-                                                            app.status ===
-                                                                "Rejected";
+                                        // Check approvals array
+                                        const hasMatchingApproval = items.approvals &&
+                                            items.approvals.some((app, index, arr) => {
+                                                const isPending =
+                                                    app.nextDepartment === role &&
+                                                    app.approvalId !== userId &&
+                                                    app.status === "Approved";
 
-                                                        const isLatestApproval =
-                                                            index ===
-                                                            arr.length - 1;
+                                                const isLatestApproval = index === arr.length - 1;
 
-                                                        return (
-                                                            isPending &&
-                                                            isLatestApproval
-                                                        );
-                                                    }
-                                                )
-                                        );
-                                } else {
-                                    filteredByApprovals =
-                                        response.data.reqData.filter(
-                                            (items) =>
-                                                items.approvals &&
-                                                items.approvals.some(
-                                                    (app, index, arr) => {
-                                                        const isPending =
-                                                            app.nextDepartment ===
-                                                                role &&
-                                                            app.approvalId !==
-                                                                userId &&
-                                                            app.status ===
-                                                                "Approved";
+                                                return isPending && isLatestApproval;
+                                            });
 
-                                                        const isLatestApproval =
-                                                            index ===
-                                                            arr.length - 1;
+                                        return hasMatchingApproval;
+                                    }
+                                );
 
-                                                        return (
-                                                            isPending &&
-                                                            isLatestApproval
-                                                        );
-                                                    }
-                                                )
-                                        );
-                                }
+                                const filteredByHodEmail = response.data.reqData.filter(
+                                    (items) => {
+                                        const matchesDepartment =
+                                            items.nextDepartment === role ||
+                                            items.nextDepartment === department;
 
-                                const filteredByHodEmail =
-                                    response.data.reqData.filter(
-                                        (items) =>
+                                        const isHodPending =
                                             items.firstLevelApproval &&
-                                            items.firstLevelApproval
-                                                .hodEmail === email &&
+                                            items.firstLevelApproval.hodEmail === email &&
                                             ![
                                                 "Approved",
                                                 "Hold",
                                                 "Rejected",
-                                            ].includes(
-                                                items.firstLevelApproval.status
-                                            )
-                                    );
+                                            ].includes(items.firstLevelApproval.status);
+
+                                        return matchesDepartment && isHodPending;
+                                    }
+                                );
 
                                 const combinedData = [
                                     ...filteredByApprovals,
                                     ...filteredByHodEmail,
                                 ].filter(
                                     (item, index, self) =>
-                                        index ===
-                                        self.findIndex(
-                                            (t) => t._id === item._id
-                                        )
+                                        index === self.findIndex((t) => t._id === item._id)
                                 );
 
-                                console.log(
-                                    "Combined data for pending approvals:",
-                                    combinedData
-                                );
-
+                                console.log("Pending approvals combined data:", combinedData.length);
                                 setUsers(combinedData);
-                                setFilteredUsers(combinedData);
                             }
-                        } else if (action === "Total-Approvals") {
-                            console.log("Action-->", response.data.reqData);
-                            const filteredData = response.data.reqData;
-                            setUsers(filteredData);
-                        } else if (action === "My-Approvals") {
-                            const filteredData = response.data.reqData.filter(
-                                (item) =>
-                                    item.approvals.some(
-                                        (app) =>
-                                            app.approvalId === userId &&
-                                            app.status === "Approved"
-                                    )
-                            );
 
+                        } else if (action === "OnHold-Approvals") {
+                            // For OnHold-Approvals: Show hold requests for user's department
+                            console.log("OnHold-Approvals filtering");
+
+                            if (role === "HOD Department" || role === "Admin") {
+                                const filteredData = response.data.reqData.filter(
+                                    (items) => {
+                                        const isHold = items.firstLevelApproval.status === "Hold";
+                                        const matchesDepartment =
+                                            items.nextDepartment === role ||
+                                            (items.nextDepartment === department || items.cDepartment === department);
+                                        const isHodHold = items.firstLevelApproval.hodEmail === email && items.firstLevelApproval.status === "Hold";
+
+                                        return isHold && matchesDepartment && isHodHold;
+                                    }
+                                );
+                                setUsers(filteredData);
+
+                            } else {
+                                const filteredByApprovals = response.data.reqData.filter(
+                                    (items) => {
+                                        const matchesDepartment =
+                                            items.nextDepartment === role ||
+                                            (items.nextDepartment === department || items.cDepartment === department);
+
+                                        if (!matchesDepartment) return false;
+
+                                        return items.approvals &&
+                                            items.approvals.some((app, index, arr) => {
+                                                const isHold =
+                                                    app.approvalId === userId &&
+                                                    app.status === "Hold";
+
+                                                const isLatestApproval = index === arr.length - 1;
+
+                                                return isHold && isLatestApproval;
+                                            });
+                                    }
+                                );
+                                setUsers(filteredByApprovals);
+                            }
+
+                        } else if (action === "Rejected-Approvals") {
+                            // For Rejected-Approvals: Show rejected requests for user's department
+                            console.log("Rejected-Approvals filtering");
+
+                            if (role === "HOD Department" || role === "Admin") {
+                                const filteredData = response.data.reqData.filter(
+                                    (items) => {
+                                        const isRejected = items.firstLevelApproval.status === "Rejected";
+                                        const matchesDepartment =
+                                            items.nextDepartment === role ||
+                                            (items.nextDepartment === department || items.cDepartment === department);
+
+                                        const isHodHold = items.firstLevelApproval.hodEmail === email && items.firstLevelApproval.status === "Hold";
+
+                                        return isHold && matchesDepartment && isHodHold;
+                                    }
+                                );
+                                setUsers(filteredData);
+
+                            } else {
+                                const filteredByApprovals = response.data.reqData.filter(
+                                    (items) => {
+                                        const matchesDepartment =
+                                            items.nextDepartment === role ||
+                                            items.nextDepartment === department;
+
+                                        if (!matchesDepartment) return false;
+
+                                        return items.approvals &&
+                                            items.approvals.some((app, index, arr) => {
+                                                const isRejected =
+                                                    app.approvalId === userId &&
+                                                    app.status === "Rejected";
+
+                                                const isLatestApproval = index === arr.length - 1;
+
+                                                return isRejected && isLatestApproval;
+                                            });
+                                    }
+                                );
+                                setUsers(filteredByApprovals);
+                            }
+
+                        } else if (action === "Approved-Approvals") {
+                            // For Approved-Approvals: Show approved requests by this user
+                            console.log("Approved-Approvals filtering");
+                            const filteredData = response.data.reqData.filter((items) =>
+                                items.approvals.some((app) => {
+                                    const isUserApproval = app.approvalId === userId && app.status === "Approved";
+                                    const matchesDepartment =
+                                        items.nextDepartment === role ||
+                                        items.nextDepartment === department;
+
+                                    return isUserApproval || matchesDepartment;
+                                })
+                            );
                             setUsers(filteredData);
+
+                        } else if (action === "My-Approvals") {
+                            // For My-Approvals: Show only user's approved requests
+                            const filteredData = response.data.reqData.filter((item) =>
+                                item.approvals.some(
+                                    (app) =>
+                                        app.approvalId === userId &&
+                                        app.status === "Approved"
+                                )
+                            );
+                            setUsers(filteredData);
+
                         } else {
-                            console.log("else");
+                            // Default case: Show approved requests
+                            console.log("Default case - showing approved");
                             const filteredData = response.data.reqData.filter(
                                 (item) => item.status === "Approved"
                             );
@@ -892,21 +926,19 @@ const RequestStatistcsTable = () => {
                         </button>
                         <div className="flex justify-between">
                             <button
-                                className={`px-4 py-2 mr-2 rounded-lg text-sm font-medium ${
-                                    !showAllData
-                                        ? "bg-primary text-white"
-                                        : "bg-gray-100 text-gray-700"
-                                }`}
+                                className={`px-4 py-2 mr-2 rounded-lg text-sm font-medium ${!showAllData
+                                    ? "bg-primary text-white"
+                                    : "bg-gray-100 text-gray-700"
+                                    }`}
                                 onClick={() => handleFilterToggle(false)}
                             >
                                 {action.replace(/-/g, " ")}
                             </button>
                             <button
-                                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                                    showAllData
-                                        ? "bg-primary text-white"
-                                        : "bg-gray-100 text-gray-700"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium ${showAllData
+                                    ? "bg-primary text-white"
+                                    : "bg-gray-100 text-gray-700"
+                                    }`}
                                 onClick={() => handleFilterToggle(true)}
                             >
                                 All
@@ -944,21 +976,19 @@ const RequestStatistcsTable = () => {
 
                         <div className="hidden lg:flex items-center gap-4">
                             <button
-                                className={`px-4 py-2  rounded-lg text-sm font-medium ${
-                                    !showAllData
-                                        ? "bg-primary text-white"
-                                        : "bg-gray-100 text-gray-700"
-                                }`}
+                                className={`px-4 py-2  rounded-lg text-sm font-medium ${!showAllData
+                                    ? "bg-primary text-white"
+                                    : "bg-gray-100 text-gray-700"
+                                    }`}
                                 onClick={() => handleFilterToggle(false)}
                             >
                                 {action.replace(/-/g, " ")}
                             </button>
                             <button
-                                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                                    showAllData
-                                        ? "bg-primary text-white"
-                                        : "bg-gray-100 text-gray-700"
-                                }`}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium ${showAllData
+                                    ? "bg-primary text-white"
+                                    : "bg-gray-100 text-gray-700"
+                                    }`}
                                 onClick={() => handleFilterToggle(true)}
                             >
                                 All
@@ -1149,7 +1179,7 @@ const RequestStatistcsTable = () => {
                     handlePageChange={handlePageChange}
                     itemsPerPage={itemsPerPage}
                     filteredUsers={filteredUsers}
-                    selectedRequests ={selectedRequests }
+                    selectedRequests={selectedRequests}
                 />
 
                 {isShowModal && (

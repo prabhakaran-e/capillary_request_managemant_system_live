@@ -226,7 +226,7 @@ const RequestStaticsListTableContent = ({showBulkApproval,handleSelectAll,select
                                                             "Approved" && (
                                                             <>
                                                                 {
-                                                                    user.nextDepartment
+                                                                    user.nextDepartment||user.cDepartment
                                                                 }{" "}
                                                                 <br />
                                                             </>

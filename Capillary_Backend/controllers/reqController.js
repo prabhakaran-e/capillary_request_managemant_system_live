@@ -44,9 +44,9 @@ const postComments = async (req, res) => {
       await Promise.all([
         taggedEmployeeEmail
           ? empModel.findOne(
-              { company_email_id: taggedEmployeeEmail },
-              { full_name: 1, company_email_id: 1, employee_id: 1 }
-            )
+            { company_email_id: taggedEmployeeEmail },
+            { full_name: 1, company_email_id: 1, employee_id: 1 }
+          )
           : Promise.resolve(null),
         empModel
           .findOne(
@@ -337,6 +337,37 @@ const getStatisticData = async (req, res) => {
         }
       });
 
+      const completedApprovalData = await CreateNewReq.find({
+        $or: [
+          {
+            "firstLevelApproval.hodEmail": consolidatedData.company_email_id,
+            "firstLevelApproval.approved": true,
+          },
+          { "approvals.nextDepartment": role },
+        ],
+        isCompleted: true,
+      });
+
+      completedApprovalData.map((request) => {
+        const { approvals } = request;
+        const lastLevelApprovals = approvals[approvals.length - 1];
+        console.log("lastLevelApprovals", lastLevelApprovals);
+        if (
+          lastLevelApprovals.approvalId === empId &&
+          lastLevelApprovals.status === "Hold"
+        ) {
+          onHoldApprovals++;
+        } else if (
+          lastLevelApprovals.approvalId === empId &&
+          lastLevelApprovals.status === "Rejected"
+        ) {
+          rejectedApprovals++;
+        }
+      });
+
+
+
+
       // pendingRequest = myRequestData.filter(
       //   (req) => req.status === "Pending" || req.status === "PO-Pending"
       // ).length;
@@ -381,7 +412,7 @@ const getStatisticData = async (req, res) => {
             app.approvalId === empId && app.status === "Approved";
           const isFirstLevelApproved =
             request.firstLevelApproval?.hodEmail ===
-              consolidatedData.company_email_id &&
+            consolidatedData.company_email_id &&
             request.firstLevelApproval?.approved;
 
           return isApprovedByEmp || isFirstLevelApproved;
@@ -410,6 +441,8 @@ const getStatisticData = async (req, res) => {
       });
 
       pendingApprovals = pendingCount;
+
+
 
       departmentBudgetByCurrency = reqData.reduce((acc, req) => {
         if (
@@ -475,6 +508,8 @@ const getStatisticData = async (req, res) => {
         "firstLevelApproval.hodEmail": email,
         status: "Approved",
       }).lean();
+
+
 
       deptCompleteReq = completedApprovalsData.length;
 
@@ -809,7 +844,7 @@ const filterByDateStatitics = async (req, res) => {
             app.approvalId === empId && app.status === "Approved";
           const isFirstLevelApproved =
             request.firstLevelApproval?.hodEmail ===
-              consolidatedData.company_email_id &&
+            consolidatedData.company_email_id &&
             request.firstLevelApproval?.approved;
 
           return isApprovedByEmp || isFirstLevelApproved;
@@ -1345,7 +1380,7 @@ const getApprovedReqData = async (req, res) => {
     const { id } = req.params;
     const { showPendingOnly } = req.query;
     console.log("showPendingOnly", showPendingOnly);
-    console.log("Id", id);
+
 
     let consolidatedData;
 
@@ -1425,6 +1460,7 @@ const getApprovedReqData = async (req, res) => {
           departmentInfo.nextDepartment = firstLevelApproval.hodDepartment;
         } else {
           if (latestLevelApproval.status === "Approved") {
+            console.log("Am inside", latestLevelApproval.nextDepartment);
             departmentInfo.nextDepartment = latestLevelApproval.nextDepartment;
           } else if (
             latestLevelApproval.status === "Hold" ||
@@ -1446,6 +1482,9 @@ const getApprovedReqData = async (req, res) => {
       })
     );
 
+    const sample = processedReqData.filter((req) => req.reqid==="INBH03112519");
+    console.log("sample", sample);
+
     res.status(200).json({ reqData: processedReqData });
   } catch (err) {
     console.error("Error in fetching new notifications", err);
@@ -1455,7 +1494,6 @@ const getApprovedReqData = async (req, res) => {
 
 // Function to check approval status and assign color if disabled
 const checkApprovalStatus = async (role, userId, requestId, email) => {
-  console.log("role, userId, requestId,email", role, userId, requestId, email);
   try {
     const request = await CreateNewReq.findById(requestId).lean();
 
@@ -1470,7 +1508,6 @@ const checkApprovalStatus = async (role, userId, requestId, email) => {
     let color = "gray"; // Default color
 
     if (latestApproval) {
-      console.log(" latest approval");
       if (
         latestApproval.nextDepartment === role ||
         (latestApproval.approvalId === userId && request.status !== "Approved")
@@ -2762,9 +2799,8 @@ const approveRequest = async (req, res) => {
       (latestApproval.status === "Rejected" || latestApproval.status === "Hold")
     ) {
       return res.status(400).json({
-        message: `Request is currently ${latestApproval.status.toLowerCase()} by ${
-          latestApproval.departmentName
-        }. No further actions can be taken.`,
+        message: `Request is currently ${latestApproval.status.toLowerCase()} by ${latestApproval.departmentName
+          }. No further actions can be taken.`,
       });
     }
 
@@ -3864,8 +3900,8 @@ const saveProcurementsData = async (req, res) => {
               const urls = Array.isArray(fileObj.urls)
                 ? fileObj.urls
                 : fileObj.urls
-                ? [fileObj.urls]
-                : [];
+                  ? [fileObj.urls]
+                  : [];
               urls.forEach((url) => existingUrls.add(url));
             }
           }
@@ -3881,8 +3917,8 @@ const saveProcurementsData = async (req, res) => {
           let urls = Array.isArray(fileObj.urls)
             ? fileObj.urls
             : fileObj.urls
-            ? [fileObj.urls]
-            : [];
+              ? [fileObj.urls]
+              : [];
 
           // remove duplicates
           let mergedUrls = urls.filter((url) => !existingUrls.has(url));
@@ -3894,8 +3930,8 @@ const saveProcurementsData = async (req, res) => {
             )
               ? updateData.procurements.uploadedFiles[0][key].urls
               : updateData.procurements.uploadedFiles[0][key].urls
-              ? [updateData.procurements.uploadedFiles[0][key].urls]
-              : [];
+                ? [updateData.procurements.uploadedFiles[0][key].urls]
+                : [];
 
             mergedUrls = [...oldUrls, ...mergedUrls];
           }
@@ -5283,9 +5319,8 @@ const getSearchedData = async (req, res) => {
     allRequests.forEach((req) => {
       const approvals = req.approvals || [];
       const firstApproval = req.firstLevelApproval || {};
-      const key = `${req.commercials.entity}-${department || role}-${
-        req.supplies.selectedCurrency
-      }`;
+      const key = `${req.commercials.entity}-${department || role}-${req.supplies.selectedCurrency
+        }`;
 
       // Initialize counts
       if (!counts[key]) {

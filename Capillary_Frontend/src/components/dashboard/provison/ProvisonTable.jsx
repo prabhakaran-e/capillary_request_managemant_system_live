@@ -16,25 +16,16 @@ import {
   getPoData,
   updatePOData,
   fetchIndividualRequest,
+  getAllCurrencyData,
 } from "../../../api/service/adminServices";
 import PoDataAddForm from "./PoDataAddForm";
 import DataTable from "./DataTable";
+import DeleteModal from "./DeleteModal";
 
 const ProvisonTable = () => {
   const empId = localStorage.getItem("capEmpId");
 
-  // Currency configuration
-  const currencies = [
-    { code: "USD", symbol: "$", locale: "en-US" },
-    { code: "EUR", symbol: "€", locale: "de-DE" },
-    { code: "GBP", symbol: "£", locale: "en-GB" },
-    { code: "INR", symbol: "₹", locale: "en-IN" },
-    { code: "AED", symbol: "د.إ", locale: "ar-AE" },
-    { code: "IDR", symbol: "Rp", locale: "id-ID" },
-    { code: "MYR", symbol: "RM", locale: "ms-MY" },
-    { code: "SGD", symbol: "S$", locale: "en-SG" },
-    { code: "PHP", symbol: "₱", locale: "fil-PH" },
-  ];
+
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,8 +39,9 @@ const ProvisonTable = () => {
   const fileInputRef = useRef(null);
   const [searchMode, setSearchMode] = useState("po");
   const [searchQuery, setSearchQuery] = useState("");
+  const [currencies, setCurrencies] = useState([]);
 
-  // Form state
+
   const [formData, setFormData] = useState({
     fyStart: "",
     fyEnd: "",
@@ -63,12 +55,10 @@ const ProvisonTable = () => {
     currency: "INR",
   });
 
-  // Monthly entries for form with currency
   const [monthlyEntries, setMonthlyEntries] = useState([
     { id: Date.now(), month: "", year: "", amount: "", currency: "INR" },
   ]);
 
-  // Required CSV field names - matching your backend API field names exactly
   const requiredCsvFields = [
     "fyStart",
     "fyEnd",
@@ -109,7 +99,7 @@ const ProvisonTable = () => {
     "dec-2025",
   ];
 
-  // Toast notification function
+
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -119,25 +109,99 @@ const ProvisonTable = () => {
 
   const onSearch = async (query, mode) => {
     try {
-      if (!query) return;
-      if (mode === "req") {
-        const response = await fetchIndividualRequest(query);
-        if ( response.status === 200) {
-          const poNumber = response.data.poNumber || response.data.PONumber || "";
-          if (poNumber) {
-            setFormData((prev) => ({ ...prev, poNumber }));
-            showToast("PO Number fetched successfully");
-          } else {
-            showToast("PO Number not found for this Request ID", "error");
-          }
-        } else {
-          showToast("Request not found", "error");
-        }
-      } else {
-        showToast("PO search API not available", "error");
+      if (!query || !query.trim()) {
+        showToast("Please enter a search value", "error");
+        return;
       }
-    } catch (e) {
-      showToast("Search failed", "error");
+
+      setIsUploading(true);
+
+      if (mode === "req") {
+        const response = await fetchIndividualRequest(query.trim());
+
+        if (response.status === 200) {
+          const data = response.data.data;
+
+          // Safe extraction with fallbacks
+          const poNumber =
+            data.poDocuments?.poNumber ||
+            data.poNumber ||
+            data.PONumber ||
+            "";
+
+          const vendorCode =
+            data.procurements?.vendor ||
+            "";
+
+          const vendorName =
+            data.procurements?.vendorName ||
+            "";
+
+          const totalValue =
+            data.supplies?.totalValue ||
+            data.totalValue ||
+            "";
+
+          const selectedCurrency =
+            data.supplies?.selectedCurrency ||
+            data.currency ||
+            "INR";
+
+          // Validate that we have at least some data
+          if (!poNumber && !vendorCode && !totalValue) {
+            showToast("No relevant data found for this Request ID", "error");
+            return;
+          }
+
+          // Update form with fetched data
+          setFormData((prev) => ({
+            ...prev,
+            poNumber: poNumber || prev.poNumber,
+            vendorName: vendorCode && vendorName
+              ? `${vendorCode} - ${vendorName}`
+              : vendorCode || vendorName || prev.vendorName,
+            poValue: totalValue ? totalValue.toString() : prev.poValue,
+            currency: selectedCurrency || prev.currency
+          }));
+
+          // Show success message with details
+          const fetchedFields = [];
+          if (poNumber) fetchedFields.push("PO Number");
+          if (vendorCode || vendorName) fetchedFields.push("Vendor");
+          if (totalValue) fetchedFields.push("PO Value");
+
+          showToast(
+            `Successfully fetched: ${fetchedFields.join(", ")}`,
+            "success"
+          );
+
+        } else {
+          showToast("Request not found or invalid response", "error");
+        }
+
+      } else if (mode === "po") {
+        showToast("PO Number search functionality coming soon", "info");
+        // TODO: Implement when API is available
+
+      } else if (mode === "invoice") {
+        showToast("Invoice Number search functionality coming soon", "info");
+        // TODO: Implement when API is available
+      }
+
+    } catch (error) {
+      console.error("Search error:", error);
+
+      if (error.response?.status === 404) {
+        showToast("Request ID not found", "error");
+      } else if (error.response?.status === 500) {
+        showToast("Server error. Please try again later", "error");
+      } else {
+        showToast(error.message || "Search failed", "error");
+      }
+    } finally {
+      setIsUploading(false);
+      // Clear search query after successful search
+      // setSearchQuery(""); // Uncomment if you want to clear after search
     }
   };
 
@@ -151,7 +215,7 @@ const ProvisonTable = () => {
   };
 
   const monthValueFromIndex = (idx) => {
-    const map = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+    const map = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
     return map[idx];
   };
 
@@ -255,6 +319,16 @@ const ProvisonTable = () => {
       }
     };
 
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const response = await getAllCurrencyData();
+      if (response.status === 200) {
+        setCurrencies(response.data.data);
+      }
+    };
     fetchData();
   }, []);
 
@@ -421,7 +495,7 @@ const ProvisonTable = () => {
       console.error("CSV upload error:", error);
       setCsvError(
         error.message ||
-          "Error processing CSV file. Please check the format and try again."
+        "Error processing CSV file. Please check the format and try again."
       );
       showToast("CSV upload failed", "error");
     } finally {
@@ -753,11 +827,10 @@ const ProvisonTable = () => {
       {/* Toast Notification */}
       {toast.show && (
         <div
-          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center gap-2 ${
-            toast.type === "error"
-              ? "bg-red-100 border border-red-400 text-red-700"
-              : "bg-green-100 border border-green-400 text-green-700"
-          }`}
+          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center gap-2 ${toast.type === "error"
+            ? "bg-red-100 border border-red-400 text-red-700"
+            : "bg-green-100 border border-green-400 text-green-700"
+            }`}
         >
           {toast.type === "error" ? (
             <AlertCircle className="w-5 h-5" />
@@ -776,50 +849,11 @@ const ProvisonTable = () => {
 
       {/* Delete Confirmation Modal */}
       {deleteModal.show && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <Trash2 className="w-5 h-5 text-red-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-medium text-gray-900">
-                  Delete Entry
-                </h3>
-                <p className="text-sm text-gray-500">
-                  Are you sure you want to delete this entry? This action cannot
-                  be undone.
-                </p>
-              </div>
-            </div>
-
-            {deleteModal.item && (
-              <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                <p className="text-sm font-medium text-gray-900">
-                  PO Number: {deleteModal.item.poNumber}
-                </p>
-                <p className="text-sm text-gray-600">
-                  Vendor: {deleteModal.item.vendorName}
-                </p>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setDeleteModal({ show: false, item: null })}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
+        <DeleteModal
+          deleteModal={deleteModal}
+          setDeleteModal={setDeleteModal}
+          confirmDelete={confirmDelete}
+        />
       )}
 
       <div className="max-w-full mx-auto bg-white rounded-lg shadow-lg">
