@@ -1,7 +1,7 @@
 import { Copy, ExternalLink } from "lucide-react";
 import React from "react";
 
-const RequestStaticsListTableContent = ({showBulkApproval,handleSelectAll,selectAll,currentUsers,navigate,handleRequestSelect,handleCopyReqId,handleOpenInNewTab,formatCurrency,renderActionColumn,Pagination,currentPage,totalPages,handlePageChange,itemsPerPage,filteredUsers }) => {
+const RequestStaticsListTableContent = ({showBulkApproval,handleSelectAll,selectAll,currentUsers,navigate,handleRequestSelect,handleCopyReqId,handleOpenInNewTab,formatCurrency,renderActionColumn,Pagination,currentPage,totalPages,handlePageChange,itemsPerPage,filteredUsers,selectedRequests  }) => {
     return (
         <div className="border border-gray-200 rounded-lg w-full">
             <div className="overflow-x-auto">
@@ -104,7 +104,7 @@ const RequestStaticsListTableContent = ({showBulkApproval,handleSelectAll,select
                                                             ) {
                                                                 handleRequestSelect(
                                                                     user._id,
-                                                                    !selectedRequests.includes(
+                                                                    !selectedRequests?.includes(
                                                                         user._id
                                                                     )
                                                                 );
@@ -114,7 +114,7 @@ const RequestStaticsListTableContent = ({showBulkApproval,handleSelectAll,select
                                                     >
                                                         <input
                                                             type="checkbox"
-                                                            checked={selectedRequests.includes(
+                                                            checked={selectedRequests?.includes(
                                                                 user._id
                                                             )}
                                                             onChange={() => {}} // Empty onChange to avoid React warnings

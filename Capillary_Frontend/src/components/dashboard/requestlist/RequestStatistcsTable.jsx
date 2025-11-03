@@ -1149,6 +1149,7 @@ const RequestStatistcsTable = () => {
                     handlePageChange={handlePageChange}
                     itemsPerPage={itemsPerPage}
                     filteredUsers={filteredUsers}
+                    selectedRequests ={selectedRequests }
                 />
 
                 {isShowModal && (

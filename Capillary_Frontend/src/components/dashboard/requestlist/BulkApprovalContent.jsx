@@ -9,15 +9,15 @@ const BulkApprovalContent = ({selectedRequests,handleBulkApproval,currentUsers,i
                         Bulk Actions:
                     </span>
                     <span className="text-sm text-blue-700">
-                        {selectedRequests.length} of {currentUsers.length}{" "}
+                        {selectedRequests?.length} of {currentUsers?.length}{" "}
                         selected
                     </span>
                 </div>
                 <button
                     onClick={handleBulkApproval}
-                    disabled={selectedRequests.length === 0 || isBulkApproving}
+                    disabled={selectedRequests?.length === 0 || isBulkApproving}
                     className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                        selectedRequests.length > 0 && !isBulkApproving
+                        selectedRequests?.length > 0 && !isBulkApproving
                             ? "bg-green-600 text-white hover:bg-green-700"
                             : "bg-gray-300 text-gray-500 cursor-not-allowed"
                     }`}
