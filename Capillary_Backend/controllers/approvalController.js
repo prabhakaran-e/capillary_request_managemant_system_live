@@ -96,23 +96,23 @@ const approveRequest = async (req, res) => {
         await reqData.save();
       }
 
-      // await sendIndividualEmail(
-      //   "EMPLOYEE",
-      //   requesterData.company_email_id,
-      //   requesterData.full_name,
-      //   requesterData.department,
-      //   reqData.reqid,
-      //   approvalRecord
-      // );
+      await sendIndividualEmail(
+        "EMPLOYEE",
+        requesterData.company_email_id,
+        requesterData.full_name,
+        requesterData.department,
+        reqData.reqid,
+        approvalRecord
+      );
 
-      // await sendIndividualEmail(
-      //   "AUTHORITY",
-      //   approverData.company_email_id,
-      //   approverData.full_name,
-      //   approverData.department,
-      //   reqData.reqid,
-      //   approvalRecord
-      // );
+      await sendIndividualEmail(
+        "AUTHORITY",
+        approverData.company_email_id,
+        approverData.full_name,
+        approverData.department,
+        reqData.reqid,
+        approvalRecord
+      );
 
       return res.status(200).json({
         success: true,
@@ -290,23 +290,23 @@ const approveRequest = async (req, res) => {
                   }
                 );
 
-                // await sendIndividualEmail(
-                //   "EMPLOYEE",
-                //   requesterData.company_email_id,
-                //   requesterData.full_name,
-                //   requesterData.department,
-                //   reqData.reqid,
-                //   autoApprovalRecord
-                // );
+                await sendIndividualEmail(
+                  "EMPLOYEE",
+                  requesterData.company_email_id,
+                  requesterData.full_name,
+                  requesterData.department,
+                  reqData.reqid,
+                  autoApprovalRecord
+                );
 
-                // await sendIndividualEmail(
-                //   "AUTHORITY",
-                //   autoApproverData.company_email_id,
-                //   autoApproverData.full_name,
-                //   autoApproverData.department,
-                //   reqData.reqid,
-                //   autoApprovalRecord
-                // );
+                await sendIndividualEmail(
+                  "AUTHORITY",
+                  autoApproverData.company_email_id,
+                  autoApproverData.full_name,
+                  autoApproverData.department,
+                  reqData.reqid,
+                  autoApprovalRecord
+                );
               } else {
                 console.error(
                   `No approver found for department: ${autoDepartment}`
@@ -377,38 +377,38 @@ const approveRequest = async (req, res) => {
                     .split(",")
                     .map((email) => email.trim())
                     .filter(Boolean);
-                  // for (i = 0; i < emailList.length; i++) {
-                  //   await sendIndividualEmail(
-                  //     "AUTHORITY",
-                  //     emailList[i],
-                  //     autoApproverData.full_name,
-                  //     autoDepartment,
-                  //     reqData.reqid,
-                  //     autoApprovalRecord
-                  //   );
-                  // }
+                  for (i = 0; i < emailList.length; i++) {
+                    await sendIndividualEmail(
+                      "AUTHORITY",
+                      emailList[i],
+                      autoApproverData.full_name,
+                      autoDepartment,
+                      reqData.reqid,
+                      autoApprovalRecord
+                    );
+                  }
 
                   console.log("Checking the entity email", emailList);
                   break;
                 }
 
-                // await sendIndividualEmail(
-                //   "EMPLOYEE",
-                //   requesterData.company_email_id,
-                //   requesterData.full_name,
-                //   requesterData.department,
-                //   reqData.reqid,
-                //   autoApprovalRecord
-                // );
+                await sendIndividualEmail(
+                  "EMPLOYEE",
+                  requesterData.company_email_id,
+                  requesterData.full_name,
+                  requesterData.department,
+                  reqData.reqid,
+                  autoApprovalRecord
+                );
 
-                // await sendIndividualEmail(
-                //   "AUTHORITY",
-                //   autoApproverData.company_email_id,
-                //   autoApproverData.full_name,
-                //   autoApproverData.department,
-                //   reqData.reqid,
-                //   autoApprovalRecord
-                // );
+                await sendIndividualEmail(
+                  "AUTHORITY",
+                  autoApproverData.company_email_id,
+                  autoApproverData.full_name,
+                  autoApproverData.department,
+                  reqData.reqid,
+                  autoApprovalRecord
+                );
               } else {
                 console.error(
                   `No approver found for department: ${autoDepartment}`
@@ -467,23 +467,23 @@ const approveRequest = async (req, res) => {
                 receivedOn: lastLeveLApprovals.approvalDate,
               };
 
-              // await sendIndividualEmail(
-              //   "EMPLOYEE",
-              //   requesterData.company_email_id,
-              //   requesterData.full_name,
-              //   requesterData.department,
-              //   reqData.reqid,
-              //   autoApprovalRecord
-              // );
+              await sendIndividualEmail(
+                "EMPLOYEE",
+                requesterData.company_email_id,
+                requesterData.full_name,
+                requesterData.department,
+                reqData.reqid,
+                autoApprovalRecord
+              );
 
-              // await sendIndividualEmail(
-              //   "AUTHORITY",
-              //   autoApproverData.company_email_id,
-              //   autoApproverData.full_name,
-              //   autoDepartment,
-              //   reqData.reqid,
-              //   autoApprovalRecord
-              // );
+              await sendIndividualEmail(
+                "AUTHORITY",
+                autoApproverData.company_email_id,
+                autoApproverData.full_name,
+                autoDepartment,
+                reqData.reqid,
+                autoApprovalRecord
+              );
 
               await CreateNewReq.updateOne(
                 { _id: reqId },
@@ -505,16 +505,16 @@ const approveRequest = async (req, res) => {
                   .split(",")
                   .map((email) => email.trim())
                   .filter(Boolean);
-                // for (i = 0; i < emailList.length; i++) {
-                //   await sendIndividualEmail(
-                //     "AUTHORITY",
-                //     emailList[i],
-                //     autoApproverData.full_name,
-                //     autoDepartment,
-                //     reqData.reqid,
-                //     autoApprovalRecord
-                //   );
-                // }
+                for (i = 0; i < emailList.length; i++) {
+                  await sendIndividualEmail(
+                    "AUTHORITY",
+                    emailList[i],
+                    autoApproverData.full_name,
+                    autoDepartment,
+                    reqData.reqid,
+                    autoApprovalRecord
+                  );
+                }
 
                 console.log("Checking the entity email", emailList);
                 break;
@@ -623,23 +623,23 @@ const approveRequest = async (req, res) => {
               }
             );
 
-            // await sendIndividualEmail(
-            //   "EMPLOYEE",
-            //   requesterData.company_email_id,
-            //   requesterData.full_name,
-            //   requesterData.department,
-            //   reqData.reqid,
-            //   autoApprovalRecord
-            // );
+            await sendIndividualEmail(
+              "EMPLOYEE",
+              requesterData.company_email_id,
+              requesterData.full_name,
+              requesterData.department,
+              reqData.reqid,
+              autoApprovalRecord
+            );
 
-            // await sendIndividualEmail(
-            //   "AUTHORITY",
-            //   autoApproverData.company_email_id,
-            //   autoApproverData.full_name,
-            //   autoApproverData.department,
-            //   reqData.reqid,
-            //   autoApprovalRecord
-            // );
+            await sendIndividualEmail(
+              "AUTHORITY",
+              autoApproverData.company_email_id,
+              autoApproverData.full_name,
+              autoApproverData.department,
+              reqData.reqid,
+              autoApprovalRecord
+            );
 
             if (autoDepartment === "Info Security") {
               const entityEmail = await entityModel.findOne(
@@ -651,16 +651,16 @@ const approveRequest = async (req, res) => {
                 .split(",")
                 .map((email) => email.trim())
                 .filter(Boolean);
-              // for (i = 0; i < emailList.length; i++) {
-              //   await sendIndividualEmail(
-              //     "AUTHORITY",
-              //     emailList[i],
-              //     autoApproverData.full_name,
-              //     autoDepartment,
-              //     reqData.reqid,
-              //     autoApprovalRecord
-              //   );
-              // }
+              for (i = 0; i < emailList.length; i++) {
+                await sendIndividualEmail(
+                  "AUTHORITY",
+                  emailList[i],
+                  autoApproverData.full_name,
+                  autoDepartment,
+                  reqData.reqid,
+                  autoApprovalRecord
+                );
+              }
 
               console.log("Checking the entity email", emailList);
               break;
@@ -731,23 +731,23 @@ const approveRequest = async (req, res) => {
                 }
               );
 
-              // await sendIndividualEmail(
-              //   "EMPLOYEE",
-              //   requesterData.company_email_id,
-              //   requesterData.full_name,
-              //   requesterData.department,
-              //   reqData.reqid,
-              //   autoApprovalRecord
-              // );
+              await sendIndividualEmail(
+                "EMPLOYEE",
+                requesterData.company_email_id,
+                requesterData.full_name,
+                requesterData.department,
+                reqData.reqid,
+                autoApprovalRecord
+              );
 
-              // await sendIndividualEmail(
-              //   "AUTHORITY",
-              //   autoApproverData.company_email_id,
-              //   autoApproverData.full_name,
-              //   autoApproverData.department,
-              //   reqData.reqid,
-              //   autoApprovalRecord
-              // );
+              await sendIndividualEmail(
+                "AUTHORITY",
+                autoApproverData.company_email_id,
+                autoApproverData.full_name,
+                autoApproverData.department,
+                reqData.reqid,
+                autoApprovalRecord
+              );
             } else {
               console.error(
                 `No approver found for department: ${autoDepartment}`
@@ -814,23 +814,23 @@ const approveRequest = async (req, res) => {
                 }
               );
 
-              // await sendIndividualEmail(
-              //   "EMPLOYEE",
-              //   requesterData.company_email_id,
-              //   requesterData.full_name,
-              //   requesterData.department,
-              //   reqData.reqid,
-              //   autoApprovalRecord
-              // );
+              await sendIndividualEmail(
+                "EMPLOYEE",
+                requesterData.company_email_id,
+                requesterData.full_name,
+                requesterData.department,
+                reqData.reqid,
+                autoApprovalRecord
+              );
 
-              // await sendIndividualEmail(
-              //   "AUTHORITY",
-              //   autoApproverData.company_email_id,
-              //   autoApproverData.full_name,
-              //   autoApproverData.department,
-              //   reqData.reqid,
-              //   autoApprovalRecord
-              // );
+              await sendIndividualEmail(
+                "AUTHORITY",
+                autoApproverData.company_email_id,
+                autoApproverData.full_name,
+                autoApproverData.department,
+                reqData.reqid,
+                autoApprovalRecord
+              );
             } else {
               console.error(
                 `No approver found for department: ${autoDepartment}`
@@ -897,23 +897,23 @@ const approveRequest = async (req, res) => {
                 }
               );
 
-              // await sendIndividualEmail(
-              //   "EMPLOYEE",
-              //   requesterData.company_email_id,
-              //   requesterData.full_name,
-              //   requesterData.department,
-              //   reqData.reqid,
-              //   autoApprovalRecord
-              // );
+              await sendIndividualEmail(
+                "EMPLOYEE",
+                requesterData.company_email_id,
+                requesterData.full_name,
+                requesterData.department,
+                reqData.reqid,
+                autoApprovalRecord
+              );
 
-              // await sendIndividualEmail(
-              //   "AUTHORITY",
-              //   autoApproverData.company_email_id,
-              //   autoApproverData.full_name,
-              //   autoApproverData.department,
-              //   reqData.reqid,
-              //   autoApprovalRecord
-              // );
+              await sendIndividualEmail(
+                "AUTHORITY",
+                autoApproverData.company_email_id,
+                autoApproverData.full_name,
+                autoApproverData.department,
+                reqData.reqid,
+                autoApprovalRecord
+              );
 
               if (autoDepartment === "Info Security") {
                 const entityEmail = await entityModel.findOne(
@@ -925,16 +925,16 @@ const approveRequest = async (req, res) => {
                   .split(",")
                   .map((email) => email.trim())
                   .filter(Boolean);
-                // for (i = 0; i < emailList.length; i++) {
-                //   await sendIndividualEmail(
-                //     "AUTHORITY",
-                //     emailList[i],
-                //     autoApproverData.full_name,
-                //     autoDepartment,
-                //     reqData.reqid,
-                //     autoApprovalRecord
-                //   );
-                // }
+                for (i = 0; i < emailList.length; i++) {
+                  await sendIndividualEmail(
+                    "AUTHORITY",
+                    emailList[i],
+                    autoApproverData.full_name,
+                    autoDepartment,
+                    reqData.reqid,
+                    autoApprovalRecord
+                  );
+                }
 
                 console.log("Checking the entity email", emailList);
                 break;
@@ -984,14 +984,14 @@ const approveRequest = async (req, res) => {
       } else {
         reqData.approvals.push(approvalRecord);
         await reqData.save();
-        // await sendIndividualEmail(
-        //   "EMPLOYEE",
-        //   requesterData.company_email_id,
-        //   requesterData.full_name,
-        //   requesterData.department,
-        //   reqData.reqid,
-        //   approvalRecord
-        // );
+        await sendIndividualEmail(
+          "EMPLOYEE",
+          requesterData.company_email_id,
+          requesterData.full_name,
+          requesterData.department,
+          reqData.reqid,
+          approvalRecord
+        );
       }
 
       // Send success response
@@ -1159,24 +1159,24 @@ const businessFinanceBulkApproval = async (req, res) => {
               }
             );
 
-            // await sendIndividualEmail(
-            //   "EMPLOYEE",
-            //   requesterData.company_email_id,
-            //   requesterData.full_name,
-            //   requesterData.department,
-            //   reqData.reqid,
-            //   autoApprovalRecord
-            // );
+            await sendIndividualEmail(
+              "EMPLOYEE",
+              requesterData.company_email_id,
+              requesterData.full_name,
+              requesterData.department,
+              reqData.reqid,
+              autoApprovalRecord
+            );
 
-            // // Notify Approver
-            // await sendIndividualEmail(
-            //   "AUTHORITY",
-            //   autoApproverData.company_email_id,
-            //   autoApproverData.full_name,
-            //   autoDepartment,
-            //   reqData.reqid,
-            //   autoApprovalRecord
-            // );
+            // Notify Approver
+            await sendIndividualEmail(
+              "AUTHORITY",
+              autoApproverData.company_email_id,
+              autoApproverData.full_name,
+              autoDepartment,
+              reqData.reqid,
+              autoApprovalRecord
+            );
 
             // Special: Info Security → send to entity email also
             if (autoDepartment === "Info Security") {
@@ -1189,16 +1189,16 @@ const businessFinanceBulkApproval = async (req, res) => {
                 .map((e) => e.trim())
                 .filter(Boolean);
 
-              // for (let mail of emailList) {
-              //   await sendIndividualEmail(
-              //     "AUTHORITY",
-              //     mail,
-              //     autoApproverData.full_name,
-              //     autoDepartment,
-              //     reqData.reqid,
-              //     autoApprovalRecord
-              //   );
-              // }
+              for (let mail of emailList) {
+                await sendIndividualEmail(
+                  "AUTHORITY",
+                  mail,
+                  autoApproverData.full_name,
+                  autoDepartment,
+                  reqData.reqid,
+                  autoApprovalRecord
+                );
+              }
               // break after InfoSec if deviation
               if (reqData.hasDeviations === 1) break;
             }

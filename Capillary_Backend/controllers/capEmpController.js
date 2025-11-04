@@ -154,8 +154,8 @@ const createNewReq = async (req, res) => {
     let panelMemberEmail = []
     if(commercials?.hodEmail){
 
-      // panelMemberEmail.push(commercials.hodEmail);
-            panelMemberEmail.push("prabhakaran.e@capillarytech.com");
+      panelMemberEmail.push(commercials.hodEmail);
+            // panelMemberEmail.push("prabhakaran.e@capillarytech.com");
 
     }
 
