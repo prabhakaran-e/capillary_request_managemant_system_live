@@ -625,7 +625,7 @@ const ReportPage = () => {
           <label className="block text-sm font-medium text-gray-700 mb-4">
             Date Filter Type
           </label>
-          {/* <div className="flex gap-6 mb-4">
+          <div className="flex gap-6 mb-4">
             <label className="flex items-center">
               <input
                 type="radio"
@@ -665,7 +665,7 @@ const ReportPage = () => {
                 PO Expiry Date
               </span>
             </label>
-          </div> */}
+          </div>
 
           {/* Date Range Inputs */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">

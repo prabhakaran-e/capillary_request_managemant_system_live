@@ -1,5 +1,5 @@
 import { PlusCircle, Search, Trash2, Info, X, Upload } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
     getAllEntityData,
     getNewReqId,
@@ -102,6 +102,19 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
     const [availableDepartments, setAvailableDepartments] = useState([]);
     const [uniqueDepartments, setUniqueDepartments] = useState(new Map());
 
+    // Entity search state
+    const [entitySearchTerm, setEntitySearchTerm] = useState("");
+    const [isEntityFocused, setIsEntityFocused] = useState(false);
+    const entityRef = useRef(null);
+
+    // Cost Center split selection states
+    const [selectedCC1, setSelectedCC1] = useState("");
+    const [cc1SearchTerm, setCc1SearchTerm] = useState("");
+    const [isCc1Focused, setIsCc1Focused] = useState(false);
+    const [cc2SearchTerm, setCc2SearchTerm] = useState("");
+    const [isCc2Focused, setIsCc2Focused] = useState(false);
+    const [cc2Options, setCc2Options] = useState([]);
+
     useEffect(() => {
         const fetchData = async () => {
             const response = await getNewReqId();
@@ -128,43 +141,70 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                 setApprovers(savedDept.approvers);
                 setFilteredDepartments([savedDept]);
             }
+
+            const parts = (formData.department || "").split(":");
+            setSelectedCC1((parts[0] || "").trim());
+            setCc2SearchTerm((parts.slice(1).join(":") || "").trim());
+        } else if (!formData.department) {
+            setSelectedCC1("");
+            setCc2SearchTerm("");
         }
     }, [formData.department, availableDepartments, isDropDown]);
 
-    // Populate cities and sites from entities data
+    // Build CC2 options when CC1 or availableDepartments change
     useEffect(() => {
-        if (entities.length > 0) {
-            // Extract unique cities
-            const uniqueCities = [
-                ...new Set(
-                    entities.map((entity) => entity.city).filter((city) => city)
-                ),
-            ];
-            const sortedCities = uniqueCities.sort();
-            setAvailableCities(sortedCities);
-            setFilteredCities(sortedCities);
-
-            // Extract unique sites
-            const uniqueSites = [
-                ...new Set(
-                    entities
-                        .map((entity) => entity.site || entity.area)
-                        .filter((site) => site)
-                ),
-            ];
-            const sortedSites = uniqueSites.sort();
-            setAvailableSites(sortedSites);
-            setFilteredSites(sortedSites);
-
-            // Set search terms if form data exists
-            if (formData.city) {
-                setCitySearchTerm(formData.city);
-            }
-            if (formData.site) {
-                setSiteSearchTerm(formData.site);
-            }
+        if (!isDropDown) return;
+        if (!selectedCC1) {
+            setCc2Options([]);
+            return;
         }
-    }, [entities, formData.city, formData.site]);
+        const options = availableDepartments
+            .filter((d) => (d.department || "").split(":")[0].trim().toLowerCase() === selectedCC1.toLowerCase())
+            .map((d) => (d.department.split(":").slice(1).join(":") || "").trim())
+            .filter(Boolean);
+        const unique = Array.from(new Set(options)).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+        setCc2Options(unique);
+        if (cc2SearchTerm && !unique.includes(cc2SearchTerm)) {
+            setCc2SearchTerm("");
+        }
+    }, [isDropDown, selectedCC1, availableDepartments]);
+
+    // Populate cities and sites based on selected entity variants; fallback to all entities
+    useEffect(() => {
+        const source = entityVariants && entityVariants.length > 0 ? entityVariants : entities;
+        if (source.length > 0) {
+            const uniqueCities = [
+                ...new Set(source.map((e) => e.city).filter(Boolean)),
+            ].sort();
+            setAvailableCities(uniqueCities);
+            setFilteredCities(uniqueCities);
+
+            const uniqueSites = [
+                ...new Set(source.map((e) => e.site || e.area).filter(Boolean)),
+            ].sort();
+            setAvailableSites(uniqueSites);
+            setFilteredSites(uniqueSites);
+
+            if (formData.city) setCitySearchTerm(formData.city);
+            if (formData.site) setSiteSearchTerm(formData.site);
+        } else {
+            setAvailableCities([]);
+            setFilteredCities([]);
+            setAvailableSites([]);
+            setFilteredSites([]);
+        }
+    }, [entities, entityVariants, formData.city, formData.site]);
+
+    // Close entity dropdown on outside click
+    useEffect(() => {
+        const handler = (e) => {
+            if (entityRef && entityRef.current && !entityRef.current.contains(e.target)) {
+                setIsEntityFocused(false);
+            }
+        };
+        document.addEventListener("mousedown", handler);
+        return () => document.removeEventListener("mousedown", handler);
+    }, []);
 
     useEffect(() => {
         const fetchEntity = async () => {
@@ -266,8 +306,8 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                     isDropDown
                         ? []
                         : businessUnits.sort((a, b) =>
-                              a.label.localeCompare(b.label)
-                          )
+                            a.label.localeCompare(b.label)
+                        )
                 );
             }
         };
@@ -291,10 +331,47 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
 
     // Handler functions for city and site dropdowns
     const handleCityChange = (selectedCity) => {
-        const updatedFormData = {
+        // narrow to entity variants in selected city, then compute sites and bill/ship
+        const cityVariants = (entityVariants && entityVariants.length > 0
+            ? entityVariants
+            : entities.filter((e) => e.entityName === localFormData.entity))
+            .filter((e) => (e.city || "") === selectedCity);
+
+        const uniqueSites = [...new Set(cityVariants.map(v => v.site || v.area).filter(Boolean))].sort();
+
+        let updatedFormData = {
             ...localFormData,
             city: selectedCity,
         };
+
+        // update site list in UI
+        setAvailableSites(uniqueSites);
+        setFilteredSites(uniqueSites);
+
+        if (uniqueSites.length === 1) {
+            // auto-fill site and bill/ship if only one
+            const onlySite = uniqueSites[0];
+            const variant = cityVariants.find(v => (v.site || v.area) === onlySite) || cityVariants[0];
+            setSelectedEntityDetails(variant);
+            setSelectedEntityVariant(variant._id);
+            const formattedAddress = `${variant.addressLine}\n\nTax ID: ${variant.taxId || "N/A"}\nTax Type: ${variant.type || "N/A"}`;
+            updatedFormData = {
+                ...updatedFormData,
+                site: onlySite,
+                billTo: formattedAddress,
+                shipTo: formattedAddress,
+            };
+            setSiteSearchTerm(onlySite);
+        } else {
+            // multiple sites for the selected city: clear selection and addresses until site chosen
+            updatedFormData = {
+                ...updatedFormData,
+                site: "",
+                billTo: "",
+                shipTo: "",
+            };
+            setSiteSearchTerm("");
+        }
 
         setLocalFormData(updatedFormData);
         setFormData(updatedFormData);
@@ -346,6 +423,10 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
             setSearchTerm("");
             setSelectedDepartment(null);
             setApprovers([]);
+            setSelectedCC1("");
+            setCc2SearchTerm("");
+            setCc2Options([]);
+            setIsCc2Focused(false);
         } else {
             const updatedFormData = {
                 ...localFormData,
@@ -357,6 +438,10 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
             setSearchTerm("");
             setSelectedDepartment(null);
             setApprovers([]);
+            setSelectedCC1("");
+            setCc2SearchTerm("");
+            setCc2Options([]);
+            setIsCc2Focused(false);
         }
 
         if (errors[name]) {
@@ -405,7 +490,7 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
     const handleAdditionalApproverChange = (e) => {
         const approverId = e.target.value;
         setSelectedAdditionalApprover(approverId);
-        
+
         // Find the selected approver details
         const selectedApproverDetails = additionalApprovers.find(
             approver => approver.id === approverId
@@ -555,7 +640,7 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center space-x-3 flex-1 min-w-0">
                                 {fileData.preview &&
-                                fileData.type.startsWith("image/") ? (
+                                    fileData.type.startsWith("image/") ? (
                                     // Image preview
                                     <img
                                         src={fileData.preview}
@@ -570,8 +655,8 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                                                 PDF
                                             </span>
                                         ) : fileData.type.includes("word") ||
-                                          fileData.name.endsWith(".doc") ||
-                                          fileData.name.endsWith(".docx") ? (
+                                            fileData.name.endsWith(".doc") ||
+                                            fileData.name.endsWith(".docx") ? (
                                             <span className="text-blue-600 text-xs font-bold">
                                                 DOC
                                             </span>
@@ -695,35 +780,29 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
         if (matchingEntities.length > 0) {
             setEntityVariants(matchingEntities);
 
+            // derive bill/ship from all variants (will be narrowed further on city/site)
             const billToOptions = matchingEntities.map((entity) => ({
-                value: `${entity.addressLine}\n\nTax ID: ${
-                    entity.taxId || "N/A"
-                }\nTax Type: ${entity.type || "N/A"}`,
+                value: `${entity.addressLine}\n\nTax ID: ${entity.taxId || "N/A"}\nTax Type: ${entity.type || "N/A"}`,
                 label: `${entity.addressLine} - ${entity.city || "N/A"}`,
-                entity: entity,
+                entity,
             }));
-
             const shipToOptions = matchingEntities.map((entity) => ({
-                value: `${entity.addressLine}\n\nTax ID: ${
-                    entity.taxId || "N/A"
-                }\nTax Type: ${entity.type || "N/A"}`,
+                value: `${entity.addressLine}\n\nTax ID: ${entity.taxId || "N/A"}\nTax Type: ${entity.type || "N/A"}`,
                 label: `${entity.addressLine} - ${entity.city || "N/A"}`,
-                entity: entity,
+                entity,
             }));
-
             setAvailableBillToOptions(billToOptions);
             setAvailableShipToOptions(shipToOptions);
+
+            // derive cities for the selected entity
+            const uniqueCities = [...new Set(matchingEntities.map(m => m.city).filter(Boolean))].sort();
 
             if (matchingEntities.length === 1) {
                 const selectedEntity = matchingEntities[0];
                 setSelectedEntityDetails(selectedEntity);
                 setSelectedEntityVariant(selectedEntity._id);
 
-                const formattedAddress = `${
-                    selectedEntity.addressLine
-                }\n\nTax ID: ${selectedEntity.taxId || "N/A"}\nTax Type: ${
-                    selectedEntity.type || "N/A"
-                }`;
+                const formattedAddress = `${selectedEntity.addressLine}\n\nTax ID: ${selectedEntity.taxId || "N/A"}\nTax Type: ${selectedEntity.type || "N/A"}`;
 
                 const updatedFormData = {
                     ...localFormData,
@@ -734,14 +813,19 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                     billTo: formattedAddress,
                     shipTo: formattedAddress,
                 };
-
                 setLocalFormData(updatedFormData);
                 setFormData(updatedFormData);
-
-                // Update search terms for city and site
                 setCitySearchTerm(selectedEntity.city || "");
                 setSiteSearchTerm(selectedEntity.area || selectedEntity.site || "");
+
+                // set city/site arrays from single variant
+                setAvailableCities(uniqueCities);
+                setFilteredCities(uniqueCities);
+                const uniqueSites = [...new Set([selectedEntity.site || selectedEntity.area].filter(Boolean))].sort();
+                setAvailableSites(uniqueSites);
+                setFilteredSites(uniqueSites);
             } else {
+                // Multiple variants for the same entity
                 const updatedFormData = {
                     ...localFormData,
                     entity: selectedEntityName,
@@ -751,11 +835,49 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                     billTo: "",
                     shipTo: "",
                 };
-
                 setLocalFormData(updatedFormData);
                 setFormData(updatedFormData);
-                setCitySearchTerm("");
-                setSiteSearchTerm("");
+
+                // set city list for UI; auto-select if unique
+                setAvailableCities(uniqueCities);
+                setFilteredCities(uniqueCities);
+                if (uniqueCities.length === 1) {
+                    const onlyCity = uniqueCities[0];
+                    setCitySearchTerm(onlyCity);
+
+                    // Filter to that city and derive sites and bill/ship
+                    const cityVariants = matchingEntities.filter(m => (m.city || "") === onlyCity);
+                    const uniqueSites = [...new Set(cityVariants.map(m => m.site || m.area).filter(Boolean))].sort();
+                    setAvailableSites(uniqueSites);
+                    setFilteredSites(uniqueSites);
+
+                    if (uniqueSites.length === 1) {
+                        const onlySite = uniqueSites[0];
+                        setSiteSearchTerm(onlySite);
+                        // set selected details for the first match of city+site
+                        const variant = cityVariants.find(v => (v.site || v.area) === onlySite) || cityVariants[0];
+                        setSelectedEntityDetails(variant);
+                        setSelectedEntityVariant(variant._id);
+                        const formattedAddress = `${variant.addressLine}\n\nTax ID: ${variant.taxId || "N/A"}\nTax Type: ${variant.type || "N/A"}`;
+                        const updatedAutoForm = {
+                            ...updatedFormData,
+                            city: onlyCity,
+                            site: onlySite,
+                            billTo: formattedAddress,
+                            shipTo: formattedAddress,
+                        };
+                        setLocalFormData(updatedAutoForm);
+                        setFormData(updatedAutoForm);
+                    } else {
+                        setCitySearchTerm(onlyCity);
+                        setSiteSearchTerm("");
+                    }
+                } else {
+                    setCitySearchTerm("");
+                    setSiteSearchTerm("");
+                    setAvailableSites([]);
+                    setFilteredSites([]);
+                }
             }
 
             if (errors.entity) {
@@ -1104,69 +1226,142 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
 
     const renderDepartmentField = () => {
         if (isDropDown) {
+            const cc1Options = Array.from(
+                new Set(
+                    availableDepartments
+                        .map((d) => (d.department || "").split(":")[0].trim())
+                        .filter(Boolean)
+                )
+            ).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+
             return (
                 <div className="relative w-full">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                         Cost Center <span className="text-red-500">*</span>
                     </label>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            value={searchTerm}
-                            onChange={(e) => {
-                                setSearchTerm(e.target.value);
-                                const filtered = availableDepartments.filter(
-                                    (dept) =>
-                                        dept.department
-                                            .toLowerCase()
-                                            .includes(
-                                                e.target.value.toLowerCase()
-                                            )
-                                ).sort((a, b) =>
-                                    (a.department || "").toLowerCase().localeCompare((b.department || "").toLowerCase())
-                                );
-                                setFilteredDepartments(filtered);
-                            }}
-                            onFocus={() => setIsSearchFocused(true)}
-                            placeholder="Search department..."
-                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition duration-300"
-                        />
-                        <Search
-                            className="absolute right-3 top-3.5 text-gray-400"
-                            size={20}
-                        />
-                    </div>
 
-                    {isSearchFocused && (
-                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                            {filteredDepartments.length > 0 ? (
-                                filteredDepartments.map((dept) => (
-                                    <div
-                                        key={dept.department}
-                                        className="px-4 py-3 hover:bg-gray-100 cursor-pointer flex flex-col border-b border-gray-100"
-                                        onClick={() =>
-                                            handleDepartmentChange(dept)
-                                        }
-                                    >
-                                        <span className="font-medium">
-                                            {dept.department}
-                                        </span>
-                                        <span className="text-sm text-gray-500">
-                                            {dept.businessUnit}
-                                        </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="w-full">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Cost Center 1</label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={cc1SearchTerm || selectedCC1}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setCc1SearchTerm(val);
+                                        setIsCc1Focused(true);
+                                    }}
+                                    onFocus={() => setIsCc1Focused(true)}
+                                    placeholder="Search cost center 1..."
+                                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition duration-300"
+                                />
+                                <Search className="absolute right-3 top-3.5 text-gray-400" size={20} />
+                                {isCc1Focused && (
+                                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                        {cc1Options
+                                            .filter((opt) => opt.toLowerCase().includes((cc1SearchTerm || "").toLowerCase()))
+                                            .map((opt) => (
+                                                <div
+                                                    key={opt}
+                                                    className="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100"
+                                                    onClick={() => {
+                                                        setSelectedCC1(opt);
+                                                        setCc1SearchTerm(opt);
+                                                        setIsCc1Focused(false);
+                                                        setCc2SearchTerm("");
+                                                        setIsCc2Focused(false);
+                                                        setSelectedDepartment(null);
+                                                        setApprovers([]);
+                                                        const updatedFormData = {
+                                                            ...localFormData,
+                                                            department: "",
+                                                            hod: "",
+                                                            hodEmail: "",
+                                                        };
+                                                        setLocalFormData(updatedFormData);
+                                                        setFormData(updatedFormData);
+                                                    }}
+                                                >
+                                                    <span className="font-medium">{opt}</span>
+                                                </div>
+                                            ))}
+                                        {cc1Options.filter((opt) => opt.toLowerCase().includes((cc1SearchTerm || "").toLowerCase())).length === 0 && (
+                                            <div className="px-4 py-3 text-gray-500">No options found</div>
+                                        )}
                                     </div>
-                                ))
-                            ) : (
-                                <div className="px-4 py-3 text-gray-500">
-                                    No departments found
-                                </div>
+                                )}
+                            </div>
+                            {errors.department && !selectedCC1 && (
+                                <p className="text-red-500 text-xs mt-1">{errors.department}</p>
                             )}
                         </div>
-                    )}
+
+                        <div className="w-full">
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Cost Center 2</label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={cc2SearchTerm}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setCc2SearchTerm(val);
+                                        setIsCc2Focused(true);
+                                    }}
+                                    onFocus={() => setIsCc2Focused(true)}
+                                    placeholder={selectedCC1 ? "Search cost center 2..." : "Select Cost Center 1 first"}
+                                    disabled={!selectedCC1}
+                                    className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none transition duration-300 ${!selectedCC1
+                                        ? "border-gray-300 bg-gray-100"
+                                        : "border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+                                        }`}
+                                />
+                                <Search className="absolute right-3 top-3.5 text-gray-400" size={20} />
+
+                                {isCc2Focused && selectedCC1 && (
+                                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                        {cc2Options
+                                            .filter((opt) => opt.toLowerCase().includes(cc2SearchTerm.toLowerCase()))
+                                            .map((opt) => (
+                                                <div
+                                                    key={opt}
+                                                    className="px-4 py-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100"
+                                                    onClick={() => {
+                                                        const full = `${selectedCC1} : ${opt}`;
+                                                        setCc2SearchTerm(opt);
+                                                        setIsCc2Focused(false);
+                                                        setSearchTerm(full);
+                                                        const deptObj = availableDepartments.find((d) => d.department === full);
+                                                        if (deptObj) {
+                                                            handleDepartmentChange(deptObj);
+                                                        } else {
+                                                            const updatedFormData = {
+                                                                ...localFormData,
+                                                                department: full,
+                                                                hod: "",
+                                                                hodEmail: "",
+                                                            };
+                                                            setLocalFormData(updatedFormData);
+                                                            setFormData(updatedFormData);
+                                                            setSelectedDepartment(null);
+                                                            setApprovers([]);
+                                                        }
+                                                    }}
+                                                >
+                                                    <span className="font-medium">{opt}</span>
+                                                </div>
+                                            ))}
+                                        {cc2Options.filter((opt) => opt.toLowerCase().includes(cc2SearchTerm.toLowerCase())).length === 0 && (
+                                            <div className="px-4 py-3 text-gray-500">No options found</div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
                     {errors.department && (
-                        <p className="text-red-500 text-xs mt-1">
-                            {errors.department}
-                        </p>
+                        <p className="text-red-500 text-xs mt-1">{errors.department}</p>
                     )}
                 </div>
             );
@@ -1185,9 +1380,7 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                     readOnly
                 />
                 {errors.department && (
-                    <p className="text-red-500 text-xs mt-1">
-                        {errors.department}
-                    </p>
+                    <p className="text-red-500 text-xs mt-1">{errors.department}</p>
                 )}
             </div>
         );
@@ -1384,40 +1577,62 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
     };
 
     const renderEntityField = () => {
+        const names = [
+            ...new Set(entities.map((e) => e.entityName).filter(Boolean)),
+        ].sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+
         return (
             <div className="w-full">
                 <label className="block text-sm font-semibold text-primary mb-2">
                     Entity <span className="text-red-500">*</span>
                 </label>
-                <select
-                    name="entity"
-                    value={localFormData.entity}
-                    onChange={handleEntityChange}
-                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition duration-300"
-                >
-                    <option value="">Select Entity</option>
-                    {(() => {
-                        const names = [
-                            ...new Set(
-                                entities
-                                    .map((e) => e.entityName)
-                                    .filter(Boolean)
-                            ),
-                        ];
-                        names.sort((a, b) =>
-                            a.toLowerCase().localeCompare(b.toLowerCase())
-                        );
-                        return names.map((entityName, index) => (
-                            <option key={index} value={entityName}>
-                                {toTitleCase(entityName)}
-                            </option>
-                        ));
-                    })()}
-                </select>
+                <div className="relative" ref={entityRef}>
+                    <input
+                        type="text"
+                        name="entity"
+                        value={entitySearchTerm || localFormData.entity}
+                        onChange={(e) => {
+                            setEntitySearchTerm(e.target.value);
+                            setIsEntityFocused(true);
+                        }}
+                        onFocus={() => setIsEntityFocused(true)}
+                        placeholder="Search entity..."
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                    <Search className="absolute right-3 top-3.5 text-gray-400" size={20} />
+
+                    {isEntityFocused && (
+                        <div className="absolute left-0 z-30 mt-1 bg-white border border-gray-300 rounded-lg shadow-2xl max-h-96 overflow-y-auto min-w-[20rem] md:min-w-[20rem]">
+                            {names
+                                .filter((n) =>
+                                    (entitySearchTerm || "")
+                                        .toLowerCase()
+                                        ? n.toLowerCase().includes(entitySearchTerm.toLowerCase())
+                                        : true
+                                )
+                                .map((entityName) => (
+                                    <button
+                                        type="button"
+                                        key={entityName}
+                                        className="w-full text-left px-4 py-2.5 hover:bg-gray-50 cursor-pointer text-sm text-gray-800"
+                                        onClick={() => {
+                                            setEntitySearchTerm(entityName);
+                                            setIsEntityFocused(false);
+                                            handleEntityChange({ target: { value: entityName } });
+                                        }}
+                                        title={toTitleCase(entityName)}
+                                    >
+                                        <span className="block whitespace-normal break-words">{toTitleCase(entityName)}</span>
+                                    </button>
+                                ))}
+                            {names.filter((n) => (entitySearchTerm || "").toLowerCase() ? n.toLowerCase().includes(entitySearchTerm.toLowerCase()) : true).length === 0 && (
+                                <div className="px-4 py-3 text-xs text-gray-500">No entities found</div>
+                            )}
+                        </div>
+                    )}
+                </div>
                 {errors.entity && (
-                    <p className="text-red-500 text-xs mt-1">
-                        {errors.entity}
-                    </p>
+                    <p className="text-red-500 text-xs mt-1">{errors.entity}</p>
                 )}
             </div>
         );
@@ -1511,11 +1726,10 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                                                         disabled={
                                                             localFormData.isCreditCardSelected
                                                         }
-                                                        className={`w-full px-2 sm:px-3 py-1 sm:py-2 border-2 border-gray-300 rounded-lg ${
-                                                            localFormData.isCreditCardSelected
-                                                                ? "bg-gray-100 cursor-not-allowed"
-                                                                : "focus:ring-2 focus:ring-primary"
-                                                        } focus:outline-none focus:border-transparent transition duration-300`}
+                                                        className={`w-full px-2 sm:px-3 py-1 sm:py-2 border-2 border-gray-300 rounded-lg ${localFormData.isCreditCardSelected
+                                                            ? "bg-gray-100 cursor-not-allowed"
+                                                            : "focus:ring-2 focus:ring-primary"
+                                                            } focus:outline-none focus:border-transparent transition duration-300`}
                                                         placeholder="Enter %"
                                                         style={{
                                                             appearance: "none",
@@ -1528,15 +1742,15 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                                                     {errors.paymentTerms?.[
                                                         index
                                                     ]?.percentageTerm && (
-                                                        <p className="text-red-500 text-xs mt-1">
-                                                            {
-                                                                errors
-                                                                    .paymentTerms[
-                                                                    index
-                                                                ].percentageTerm
-                                                            }
-                                                        </p>
-                                                    )}
+                                                            <p className="text-red-500 text-xs mt-1">
+                                                                {
+                                                                    errors
+                                                                        .paymentTerms[
+                                                                        index
+                                                                    ].percentageTerm
+                                                                }
+                                                            </p>
+                                                        )}
                                                 </td>
 
                                                 <td className="px-2 sm:px-4 py-2 sm:py-3">
@@ -1552,11 +1766,10 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                                                         disabled={
                                                             localFormData.isCreditCardSelected
                                                         }
-                                                        className={`w-full px-2 sm:px-3 py-1 sm:py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm ${
-                                                            localFormData.isCreditCardSelected
-                                                                ? "bg-gray-100 cursor-not-allowed"
-                                                                : "focus:ring-2 focus:ring-primary"
-                                                        } focus:outline-none focus:border-transparent transition duration-300`}
+                                                        className={`w-full px-2 sm:px-3 py-1 sm:py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm ${localFormData.isCreditCardSelected
+                                                            ? "bg-gray-100 cursor-not-allowed"
+                                                            : "focus:ring-2 focus:ring-primary"
+                                                            } focus:outline-none focus:border-transparent transition duration-300`}
                                                     >
                                                         <option value="">
                                                             Select Payment Term
@@ -1586,38 +1799,38 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                                                     </select>
                                                     {term.paymentTerm ===
                                                         "Others" && (
-                                                        <input
-                                                            type="text"
-                                                            value={
-                                                                term.customPaymentTerm ||
-                                                                ""
-                                                            }
-                                                            onChange={(e) =>
-                                                                handleCustomTermChange(
-                                                                    e,
-                                                                    index,
-                                                                    "customPaymentTerm"
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                localFormData.isCreditCardSelected
-                                                            }
-                                                            className="w-full mt-2 px-2 sm:px-3 py-1 sm:py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-primary focus:outline-none focus:border-transparent transition duration-300"
-                                                            placeholder="Specify payment term"
-                                                        />
-                                                    )}
+                                                            <input
+                                                                type="text"
+                                                                value={
+                                                                    term.customPaymentTerm ||
+                                                                    ""
+                                                                }
+                                                                onChange={(e) =>
+                                                                    handleCustomTermChange(
+                                                                        e,
+                                                                        index,
+                                                                        "customPaymentTerm"
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    localFormData.isCreditCardSelected
+                                                                }
+                                                                className="w-full mt-2 px-2 sm:px-3 py-1 sm:py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-primary focus:outline-none focus:border-transparent transition duration-300"
+                                                                placeholder="Specify payment term"
+                                                            />
+                                                        )}
                                                     {errors.paymentTerms?.[
                                                         index
                                                     ]?.paymentTerm && (
-                                                        <p className="text-red-500 text-xs mt-1">
-                                                            {
-                                                                errors
-                                                                    .paymentTerms[
-                                                                    index
-                                                                ].paymentTerm
-                                                            }
-                                                        </p>
-                                                    )}
+                                                            <p className="text-red-500 text-xs mt-1">
+                                                                {
+                                                                    errors
+                                                                        .paymentTerms[
+                                                                        index
+                                                                    ].paymentTerm
+                                                                }
+                                                            </p>
+                                                        )}
                                                     {term.paymentTerm ===
                                                         "Others" &&
                                                         errors.paymentTerms?.[
@@ -1649,11 +1862,10 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                                                         disabled={
                                                             localFormData.isCreditCardSelected
                                                         }
-                                                        className={`w-full px-2 sm:px-3 py-1 sm:py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm ${
-                                                            localFormData.isCreditCardSelected
-                                                                ? "bg-gray-100 cursor-not-allowed"
-                                                                : "focus:ring-2 focus:ring-primary"
-                                                        } focus:outline-none focus:border-transparent transition duration-300`}
+                                                        className={`w-full px-2 sm:px-3 py-1 sm:py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm ${localFormData.isCreditCardSelected
+                                                            ? "bg-gray-100 cursor-not-allowed"
+                                                            : "focus:ring-2 focus:ring-primary"
+                                                            } focus:outline-none focus:border-transparent transition duration-300`}
                                                     >
                                                         <option value="">
                                                             Select Payment Type
@@ -1676,38 +1888,38 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                                                     </select>
                                                     {term.paymentType ===
                                                         "Others" && (
-                                                        <input
-                                                            type="text"
-                                                            value={
-                                                                term.customPaymentType ||
-                                                                ""
-                                                            }
-                                                            onChange={(e) =>
-                                                                handleCustomTermChange(
-                                                                    e,
-                                                                    index,
-                                                                    "customPaymentType"
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                localFormData.isCreditCardSelected
-                                                            }
-                                                            className="w-full mt-2 px-2 sm:px-3 py-1 sm:py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-primary focus:outline-none focus:border-transparent transition duration-300"
-                                                            placeholder="Specify payment type"
-                                                        />
-                                                    )}
+                                                            <input
+                                                                type="text"
+                                                                value={
+                                                                    term.customPaymentType ||
+                                                                    ""
+                                                                }
+                                                                onChange={(e) =>
+                                                                    handleCustomTermChange(
+                                                                        e,
+                                                                        index,
+                                                                        "customPaymentType"
+                                                                    )
+                                                                }
+                                                                disabled={
+                                                                    localFormData.isCreditCardSelected
+                                                                }
+                                                                className="w-full mt-2 px-2 sm:px-3 py-1 sm:py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm focus:ring-2 focus:ring-primary focus:outline-none focus:border-transparent transition duration-300"
+                                                                placeholder="Specify payment type"
+                                                            />
+                                                        )}
                                                     {errors.paymentTerms?.[
                                                         index
                                                     ]?.paymentType && (
-                                                        <p className="text-red-500 text-xs mt-1">
-                                                            {
-                                                                errors
-                                                                    .paymentTerms[
-                                                                    index
-                                                                ].paymentType
-                                                            }
-                                                        </p>
-                                                    )}
+                                                            <p className="text-red-500 text-xs mt-1">
+                                                                {
+                                                                    errors
+                                                                        .paymentTerms[
+                                                                        index
+                                                                    ].paymentType
+                                                                }
+                                                            </p>
+                                                        )}
                                                     {term.paymentType ===
                                                         "Others" &&
                                                         errors.paymentTerms?.[
@@ -1739,12 +1951,11 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                                                                 localFormData.isCreditCardSelected ||
                                                                 index === 0
                                                             }
-                                                            className={`flex items-center px-2 sm:px-4 py-1 sm:py-2 rounded-lg transition duration-300 text-xs sm:text-sm ${
-                                                                localFormData.isCreditCardSelected ||
+                                                            className={`flex items-center px-2 sm:px-4 py-1 sm:py-2 rounded-lg transition duration-300 text-xs sm:text-sm ${localFormData.isCreditCardSelected ||
                                                                 index === 0
-                                                                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                                                                    : "bg-red-500 text-white hover:bg-red-700"
-                                                            }`}
+                                                                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                                                                : "bg-red-500 text-white hover:bg-red-700"
+                                                                }`}
                                                         >
                                                             <Trash2
                                                                 size={16}
@@ -1766,11 +1977,10 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                         <button
                             type="button"
                             onClick={handleAddMorePaymentTerm}
-                            className={`${
-                                localFormData.isCreditCardSelected
-                                    ? "bg-gray-300 text-black"
-                                    : "bg-primary text-white"
-                            } flex items-center px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-primary-dark transition duration-300 text-xs sm:text-sm`}
+                            className={`${localFormData.isCreditCardSelected
+                                ? "bg-gray-300 text-black"
+                                : "bg-primary text-white"
+                                } flex items-center px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-primary-dark transition duration-300 text-xs sm:text-sm`}
                             disabled={localFormData.isCreditCardSelected}
                         >
                             <PlusCircle size={16} className="mr-1 sm:mr-2" />
@@ -1807,11 +2017,10 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                                         ? handleInputChange
                                         : undefined
                                 }
-                                className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none transition duration-300 ${
-                                    selectedEntityDetails
-                                        ? "border-gray-500 bg-gray-100"
-                                        : "border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
-                                }`}
+                                className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none transition duration-300 ${selectedEntityDetails
+                                    ? "border-gray-500 bg-gray-100"
+                                    : "border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+                                    }`}
                                 placeholder="Enter Bill To"
                                 rows={window.innerWidth < 640 ? "4" : "6"}
                             ></textarea>
@@ -1851,11 +2060,10 @@ const Commercials = ({ formData, setFormData, onNext, setReqId, reqId }) => {
                                         ? handleInputChange
                                         : undefined
                                 }
-                                className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none transition duration-300 ${
-                                    selectedEntityDetails
-                                        ? "border-gray-500 bg-gray-100"
-                                        : "border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
-                                }`}
+                                className={`w-full px-4 py-3 border-2 rounded-lg focus:outline-none transition duration-300 ${selectedEntityDetails
+                                    ? "border-gray-500 bg-gray-100"
+                                    : "border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent"
+                                    }`}
                                 placeholder="Enter Ship To"
                                 rows={window.innerWidth < 640 ? "4" : "6"}
                             ></textarea>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Search } from "lucide-react";
+import { Search, Download } from "lucide-react";
+import * as XLSX from "xlsx";
 import {
   checkDarwinStatus,
   getAllApprovalData,
@@ -37,7 +38,7 @@ const ApproverManagement = () => {
   const [editMode, setEditMode] = useState(false);
   const [approverToEdit, setApproverToEdit] = useState(null);
 
-  const itemsPerPage = 5;
+  const itemsPerPage = 50;
 
   // Filter data based on search query
   const filteredData = approvalData.filter((entry) =>
@@ -144,6 +145,44 @@ const ApproverManagement = () => {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  // Function to download Excel file
+  const handleDownloadExcel = () => {
+    // Prepare data for Excel export
+    const excelData = flattenedData.map((item, index) => ({
+      "S.No": index + 1,
+      "Business Unit": item.businessUnit,
+      "Department": item.departmentName,
+      "Approver Name": item.approverName,
+      "Approver ID": item.approverId,
+      "Approver Email": item.approverEmail,
+      "Role": item.role || "Approver",
+    }));
+
+    // Create a new workbook
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Approvers");
+
+    // Set column widths for better readability
+    const columnWidths = [
+      { wch: 8 },  // S.No
+      { wch: 15 }, // Business Unit
+      { wch: 20 }, // Department
+      { wch: 25 }, // Approver Name
+      { wch: 15 }, // Approver ID
+      { wch: 30 }, // Approver Email
+      { wch: 12 }, // Role
+    ];
+    worksheet['!cols'] = columnWidths;
+
+    // Generate filename with current date
+    const date = new Date().toISOString().split('T')[0];
+    const filename = `Approver_Management_${date}.xlsx`;
+
+    // Download the file
+    XLSX.writeFile(workbook, filename);
   };
 
   const handleAddApprover = async (e) => {
@@ -387,6 +426,14 @@ const ApproverManagement = () => {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold">Approver Management</h2>
             <div className="flex items-center space-x-2">
+              <button
+                onClick={handleDownloadExcel}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                title="Download Excel"
+              >
+                <Download className="h-4 w-4" />
+                <span>Download Excel</span>
+              </button>
               <input
                 type="file"
                 accept=".xlsx,.xls,.csv"
@@ -672,11 +719,10 @@ const ApproverManagement = () => {
                       <button
                         key={pageNum}
                         onClick={() => setCurrentPage(pageNum)}
-                        className={`px-3 py-1 border rounded-md ${
-                          currentPage === pageNum
+                        className={`px-3 py-1 border rounded-md ${currentPage === pageNum
                             ? "bg-primary text-white"
                             : "hover:bg-gray-50"
-                        }`}
+                          }`}
                       >
                         {pageNum}
                       </button>
