@@ -19,14 +19,13 @@ const DarwinBox = require("../models/isDarwinEnabled");
 
 exports.generateEmpId = async (req, res) => {
   try {
-    console.log("Welcome to generating the employee ID");
+   
 
     let empId;
     let isUnique = false;
 
     while (!isUnique) {
       empId = await empIdGenFunction();
-      console.log(`Generated ID: ${empId}`);
 
       const existingEmployee = await Employee.findOne({ empId });
       if (!existingEmployee) {
@@ -36,7 +35,6 @@ exports.generateEmpId = async (req, res) => {
       }
     }
 
-    console.log(`Unique Employee ID generated: ${empId}`);
     res.status(200).json({ empId });
   } catch (err) {
     console.error("Error in generating the employee ID", err);
@@ -47,9 +45,7 @@ exports.generateEmpId = async (req, res) => {
 // Create a new employee
 exports.createEmployee = async (req, res) => {
   try {
-    console.log("Create Employee Request:", req.body);
     const employee = new Employee(req.body);
-    console.log(employee);
     await employee.save();
     res
       .status(201)
@@ -63,7 +59,6 @@ exports.createEmployee = async (req, res) => {
 exports.syncEmployeeData = async (req, res) => {
   try {
     const { syncOffEmployee } = req.body;
-    // console.log("syncOffEmployee", syncOffEmployee);
     const options = {
       method: "POST",
       url: `${process.env.DARWINBOX_BASE_URL}`,
@@ -83,8 +78,7 @@ exports.syncEmployeeData = async (req, res) => {
 
     const response = await axios(options);
     const employees = response.data.employee_data;
-    // console.log("response", response);
-    // console.log("Employees===>", employees);
+
 
     await Employee.updateMany(
       { employee_id: { $in: syncOffEmployee } },
@@ -168,7 +162,6 @@ exports.syncEmployeeData = async (req, res) => {
 exports.getAllEmployees = async (req, res) => {
   try {
     const employees = await Employee.find();
-    console.log("Welcome to get all employees", employees);
     res.status(200).json(employees);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -178,7 +171,6 @@ exports.getAllEmployees = async (req, res) => {
 exports.getPanelMembers = async (req, res) => {
   try {
     const employees = await addPanelUsers.find();
-    console.log("Welcome to get all panemembers", employees);
     res.status(200).json(employees);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -189,7 +181,6 @@ exports.getIndividualPanelMembers = async (req, res) => {
   try {
     const { id } = req.params;
     const employees = await addPanelUsers.findOne({ _id: id });
-    console.log("Welcome to get all panemembers", employees);
     res.status(200).json(employees);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -199,7 +190,6 @@ exports.getIndividualPanelMembers = async (req, res) => {
 // Read a single employee by empId
 exports.getEmployeeById = async (req, res) => {
   try {
-    console.log("Welcome to edit employee", req.params.id);
     const employee = await Employee.findOne({ _id: req.params.id });
     if (!employee)
       return res.status(404).json({ message: "Employee not found" });
@@ -211,7 +201,6 @@ exports.getEmployeeById = async (req, res) => {
 
 exports.updateEmployee = async (req, res) => {
   try {
-    console.log(req.body);
     const employee = await Employee.findOneAndUpdate(
       { _id: req.params.id },
       req.body,
@@ -309,7 +298,6 @@ exports.updateEmployeeStatus = async (req, res) => {
 
 exports.createNewEmployee = async (req, res) => {
   try {
-    console.log(req.body);
     const newEmployee = new Employee({
       employee_id: req.body.employee_id,
       name: req.body.name,
@@ -345,7 +333,6 @@ exports.createNewEmployee = async (req, res) => {
 
 exports.createNewReq = async (req, res) => {
   try {
-    console.log("Complinces", req.body, req.params.id);
 
     const date = new Date();
     const day = String(date.getDate()).padStart(2, "0");
@@ -394,8 +381,7 @@ exports.createNewReq = async (req, res) => {
       panelMemberEmail.push(empData.hod_email_id || hodEmail.hod_email_id);
     }
 
-    console.log("Panel Member Emails:", panelMemberEmail);
-    console.log("Compliance Data:", req.body.complinces);
+  
 
     if (!req.body.complinces || !req.body.commercials) {
       return res.status(400).json({
@@ -448,7 +434,7 @@ exports.createNewReq = async (req, res) => {
 
 exports.getAllEmployeeReq = async (req, res) => {
   try {
-    console.log("Welcome to get req", req.params.id);
+
 
     const reqList = await CreateNewReq.find({ userId: req.params.id })
       .sort({ createdAt: -1 })
@@ -497,11 +483,11 @@ exports.getAllEmployeeReq = async (req, res) => {
 
 exports.getAdminEmployeeReq = async (req, res) => {
   try {
-    console.log("Welcome to admin get data");
+
 
     const reqList = await CreateNewReq.find().sort({ createdAt: -1 }).lean();
 
-    console.log("Reqlist", reqList);
+   
 
     if (reqList.length > 0) {
       const processedReqList = reqList.map((request) => {
@@ -529,7 +515,7 @@ exports.getAdminEmployeeReq = async (req, res) => {
         return { ...request, ...departmentInfo };
       });
 
-      console.log("Processed Request Data", processedReqList);
+   
 
       return res.status(200).json({
         message: "Requests fetched successfully",
@@ -550,7 +536,7 @@ exports.getAdminEmployeeReq = async (req, res) => {
 
 exports.deleteRequest = async (req, res) => {
   try {
-    console.log("delete req", req.params.id);
+
     const deleteReq = await CreateNewReq.findByIdAndDelete({
       _id: req.params.id,
     });
@@ -567,14 +553,14 @@ exports.deleteRequest = async (req, res) => {
 
 exports.getIndividualReq = async (req, res) => {
   try {
-    console.log("individual request");
+
     const { id } = req.params;
-    console.log(id);
+
 
     const reqList = await CreateNewReq.findOne({ _id: req.params.id })
       .sort({ createdAt: -1 })
       .exec();
-    console.log("reqList===>", reqList);
+
     const empData = await Employee.findOne({ employee_id: reqList.userId });
 
     let currDepartment;
@@ -602,7 +588,7 @@ exports.getIndividualReq = async (req, res) => {
       currentStatus: `${currDepartment} - ${reqList.status}`,
     };
 
-    console.log("requestorLog", requestorLog);
+
 
     if (!reqList || reqList.length === 0) {
       return res.status(404).json({
@@ -628,13 +614,13 @@ exports.getIndividualReq = async (req, res) => {
 
 exports.addNewPanelsMembers = async (req, res) => {
   try {
-    console.log("addNewPanelsMembers", req.body);
+    
     const { formData } = req.body;
 
     const existingEmployee = await addPanelUsers.findOne({
       employee_id: formData.employeeId,
     });
-    console.log();
+    
 
     if (existingEmployee) {
       existingEmployee.full_name = formData.empName;
@@ -675,7 +661,7 @@ exports.addNewPanelsMembers = async (req, res) => {
 
 exports.getAllApprovalDatas = async (req, res) => {
   try {
-    console.log("Welcome to get all approval datas");
+
 
     const approvalData = await Approver.find().sort({ createdAt: -1 });
 
@@ -688,7 +674,7 @@ exports.getAllApprovalDatas = async (req, res) => {
 
 exports.addNewApproverData = async (req, res) => {
   try {
-    console.log("Welcome to add new approval data", req.body);
+   
 
     const { businessUnit, departmentName, approvers } = req.body.data;
 
@@ -758,7 +744,7 @@ exports.addNewApproverData = async (req, res) => {
 
 exports.uploadApproverExcel = async (req, res) => {
   try {
-    console.log("Uploading XL", req.file);
+
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
@@ -898,7 +884,7 @@ exports.getAllEmployeeData = async (req, res) => {
 
 exports.editApproverData = async (req, res) => {
   try {
-    console.log("Welcome to edit approver data", req.body);
+
 
     const { originalData, newData } = req.body.data;
 
@@ -1011,7 +997,7 @@ exports.editApproverData = async (req, res) => {
 
 exports.deleteApproverData = async (req, res) => {
   try {
-    console.log("Welcome to delete approver data", req.body);
+  
 
     const { businessUnit, departmentName, approverId } = req.body.data;
 

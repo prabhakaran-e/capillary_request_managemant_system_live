@@ -219,7 +219,7 @@ style="background-color: #28a745; color: white; padding: 10px 20px; border-radiu
       </html>
     `,
   },
-  
+
   chatNotificationTemplate: {
     subject: "New Chat Message Received",
     html: `
@@ -277,10 +277,10 @@ style="background-color: #28a745; color: white; padding: 10px 20px; border-radiu
 </body>
 </html>
     `,
-},
-invoiceUploadedEmail: {
-  subject: `Invoice Upload Notification`,
-  html: `
+  },
+  invoiceUploadedEmail: {
+    subject: `Invoice Upload Notification`,
+    html: `
     <!DOCTYPE html>
     <html>
       <body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f9f9f9; text-align: center;">
@@ -302,10 +302,10 @@ invoiceUploadedEmail: {
       </body>
     </html>
   `,
-},
-poExpiryNotificationEmail: {
-  subject: `PO Expiry Notification`,
-  html: `
+  },
+  poExpiryNotificationEmail: {
+    subject: `PO Expiry Notification`,
+    html: `
     <!DOCTYPE html>
     <html>
       <body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f9f9f9; text-align: center;">
@@ -340,7 +340,58 @@ poExpiryNotificationEmail: {
       </body>
     </html>
   `,
-}
+  },
+  hodApprovalRequestTemplate: {
+    subject: "Action Required: New PO Request Awaiting Your Approval",
+    html: `
+  <!DOCTYPE html>
+  <html>
+  <body>
+    <div style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f9f9f9; text-align: center;">
+      <div style="max-width: 600px; margin: 20px auto; background: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
+        
+        <div style="background-color: #007bff; color: #ffffff; padding: 20px; border-top-left-radius: 8px; border-top-right-radius: 8px;">
+          <h2>PO Request Awaiting Your Approval</h2>
+        </div>
+
+        <div style="padding: 20px; color: #333; text-align: left;">
+          <p>Dear {{hodName}},</p>
+          
+          <p>
+            A new Purchase Order request has been raised by 
+            <strong>{{employeeName}} ({{empId}})</strong> from the 
+            <strong>{{department}}</strong> department.
+          </p>
+
+          <p>
+            The request with Request ID <strong>{{reqId}}</strong> is currently awaiting your <strong>First Level Approval</strong>.
+          </p>
+
+          <p>Please review and approve the request using the link below:</p>
+
+          <p style="margin: 20px 0;">
+            <a href="https://porequests-sandbox.corp.capillarytech.com/req-list-table/hod-approve-request/{{hodEmail}}/{{reqpreviewId}}" 
+               style="background-color: #007bff; color: #ffffff; padding: 12px 18px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              Review & Approve Request
+            </a>
+          </p>
+
+          <p>If the above button doesn’t work, use the link below:</p>
+          <p style="word-break: break-all;">
+            https://porequests-sandbox.corp.capillarytech.com/previewrequest/{{hodId}}/hod
+          </p>
+
+          <p>Best Regards,</p>
+          <p><strong>Capillary Finance</strong></p>
+        </div>
+
+      </div>
+    </div>
+  </body>
+  </html>
+  `,
+  }
+
 
 
 };

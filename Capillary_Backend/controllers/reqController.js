@@ -2338,6 +2338,7 @@ const isApproved = async (req, res) => {
   try {
     console.log("is approve", req.params);
     const { userId, reqId, role } = req.params;
+    console.log("userId", userId, reqId, role);
 
     // Fetch employee data
     const empData =
@@ -2359,6 +2360,7 @@ const isApproved = async (req, res) => {
       { _id: reqId },
       { firstLevelApproval: 1, approvals: 1 }
     );
+    console.log("reqData", reqData);
     const { approvals } = reqData;
     console.log("approvals", approvals, reqData.firstLevelApproval);
     const lastlevalApproval = approvals[approvals.length - 1];

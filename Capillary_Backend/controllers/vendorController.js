@@ -1,5 +1,7 @@
 const Vendor = require("../models/vendorModel");
 const generateVendorId = require("../utils/generateVendorId");
+const vendorPolicyFile = require("../models/vendorPolicyFile");
+const poPolicyFile = require("../models/poPolicyFile");
 
 // Create a new vendor
 exports.createVendor = async (req, res) => {
@@ -34,7 +36,7 @@ exports.createNewVendor = async (req, res) => {
         phone: vendor.Phone,
         email: vendor.Email || "",
         status: vendor.Status || "Active",
-        
+
         bankAccountNumber: vendor["Bank Account Number"],   // Added
         ifscSwiftCode: vendor["IFSC/SWIFT Code"],           // Added
         bankName: vendor["Bank Name"],                      // Added
@@ -206,5 +208,113 @@ exports.getNewVendorId = async (req, res) => {
     res.status(200).json({ vendorId });
   } catch (error) {
     res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+
+exports.saveVendorPolicyFile = async (req, res) => {
+  try {
+    const { fileUrl } = req.body;
+
+    if (!fileUrl) {
+      return res.status(400).json({ message: "fileUrl is required" });
+    }
+
+    // Check if a policy file already exists
+    const existingPolicy = await vendorPolicyFile.findOne();
+
+    if (existingPolicy) {
+      existingPolicy.policyFile = fileUrl;
+      await existingPolicy.save();
+      return res.status(200).json({ message: "Vendor policy file updated successfully" });
+    }
+
+    // Create new file entry
+    const newPolicy = new vendorPolicyFile({ policyFile: fileUrl });
+    await newPolicy.save();
+
+    return res.status(200).json({ message: "Vendor policy file saved successfully" });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
+
+exports.getVendorPolicyFile = async (req, res) => {
+  try {
+    const vendorPolicy = await vendorPolicyFile.findOne();
+    if (!vendorPolicy) {
+      return res.status(404).json({ message: "Vendor policy file not found" });
+    }
+    res.status(200).json(vendorPolicy);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.deleteVendorPolicyFile = async (req, res) => {
+  try {
+    const vendorPolicy = await vendorPolicyFile.findOneAndDelete();
+    if (!vendorPolicy) {
+      return res.status(404).json({ message: "Vendor policy file not found" });
+    }
+    res.status(200).json({ message: "Vendor policy file deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.savePoPolicyFile = async (req, res) => {
+  try {
+    const { fileUrl } = req.body;
+
+    if (!fileUrl) {
+      return res.status(400).json({ message: "fileUrl is required" });
+    }
+
+    // Check if a policy file already exists
+    const existingPolicy = await poPolicyFile.findOne();
+
+    if (existingPolicy) {
+      existingPolicy.policyFile = fileUrl;
+      await existingPolicy.save();
+      return res.status(200).json({ message: "Vendor policy file updated successfully" });
+    }
+
+    // Create new file entry
+    const newPolicy = new poPolicyFile({ policyFile: fileUrl });
+    await newPolicy.save();
+
+    return res.status(200).json({ message: "Vendor policy file saved successfully" });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getPoPolicyFile = async (req, res) => {
+  try {
+    const vendorPolicy = await poPolicyFile.findOne();
+    if (!vendorPolicy) {
+      return res.status(404).json({ message: "Vendor policy file not found" });
+    }
+    res.status(200).json(vendorPolicy);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.deletePoPolicyFile = async (req, res) => {
+  try {
+    const vendorPolicy = await poPolicyFile.findOneAndDelete();
+    if (!vendorPolicy) {
+      return res.status(404).json({ message: "Vendor policy file not found" });
+    }
+    res.status(200).json({ message: "Vendor policy file deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };

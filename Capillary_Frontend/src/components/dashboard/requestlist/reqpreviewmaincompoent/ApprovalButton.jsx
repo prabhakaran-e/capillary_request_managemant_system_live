@@ -285,7 +285,7 @@ const ApprovalButtons = ({
         };
 
         return (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full lg:w-auto">
                 <div className="order-1 sm:order-none">
                     <FilePreview
                         selectedFile={selectedImage}
@@ -344,13 +344,18 @@ const ApprovalButtons = ({
     };
 
     return (
-        <div className="bg-white p-3 sm:p-4 flex flex-col lg:flex-row lg:justify-between lg:items-center border-t shadow-md space-y-3 lg:space-y-0">
-            <div className="flex justify-between items-center lg:justify-start">
+        <div className="bg-white p-3 sm:p-4 flex flex-col lg:flex-row lg:justify-between lg:items-center border-t shadow-md space-y-3 lg:space-y-0 gap-4">
+            {/* Left side - Nudge button */}
+            <div className="flex justify-start">
                 {renderNudgeButton()}
-                {renderApprovalActions()}
             </div>
-            {renderPOUploadSection()}
-            <div className="lg:ml-auto">{renderInvoiceUploadSection()}</div>
+
+            {/* Right side - Approval actions and upload sections */}
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4 lg:ml-auto">
+                {renderApprovalActions()}
+                {renderPOUploadSection()}
+                {renderInvoiceUploadSection()}
+            </div>
         </div>
     );
 };

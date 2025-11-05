@@ -1351,3 +1351,76 @@ export const getFilteredRequests = async ({ userId, status, department, fromDate
     return err;
   }
 };
+
+export const saveVendorPolicy = async (fileUrl) => {
+
+  try {
+    const response = await adminServices.post(
+      `/vendors/save-vendor-policy-file`, { fileUrl }
+    );
+    return response;
+  } catch (err) {
+    return err;
+  }
+};
+
+export const getVendorPolicy = async () => {
+
+  try {
+    const response = await adminServices.get(
+      `/vendors/get-vendor-policy-file`
+    );
+    return response;
+  } catch (err) {
+    return err;
+  }
+};
+
+export const deleteVendorPolicy = async () => {
+
+  try {
+    const response = await adminServices.delete(
+      `/vendors/delete-vendor-policy-file`
+    );
+    return response;
+  } catch (err) {
+    return err;
+  }
+};
+
+
+export const savePOPolicy = async (fileUrl) => {
+
+  try {
+    const response = await adminServices.post(
+      `/vendors/save-po-policy-file`, { fileUrl }
+    );
+    return response;
+  } catch (err) {
+    return err;
+  }
+};
+
+export const getPOPolicy = async () => {
+
+  try {
+    const response = await adminServices.get(
+      `/vendors/get-po-policy-file`
+    );
+    return response;
+  } catch (err) {
+    return err;
+  }
+};
+
+export const deletePOPolicy = async () => {
+
+  try {
+    const response = await adminServices.delete(
+      `/vendors/delete-po-policy-file`
+    );
+    return response;
+  } catch (err) {
+    return err;
+  }
+};

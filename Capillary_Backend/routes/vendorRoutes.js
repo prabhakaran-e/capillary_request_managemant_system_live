@@ -8,7 +8,13 @@ const {
   updateManyVendors,
   getNewVendorId,
   createNewVendor,
-  getVendorAddedByMe
+  getVendorAddedByMe,
+  saveVendorPolicyFile,
+  deleteVendorPolicyFile,
+  getVendorPolicyFile,
+  savePoPolicyFile,
+  getPoPolicyFile,
+  deletePoPolicyFile
 } = require("../controllers/vendorController");
 const router = express.Router();
 
@@ -18,6 +24,13 @@ router.get("/get-new-vendorid", getNewVendorId);
 router.post("/create", createVendor);
 
 router.post("/create-new-vendors/:empId", createNewVendor);
+router.post("/save-vendor-policy-file", saveVendorPolicyFile);
+router.get("/get-vendor-policy-file", getVendorPolicyFile);
+router.delete("/delete-vendor-policy-file", deleteVendorPolicyFile);
+
+router.post("/save-po-policy-file", savePoPolicyFile);
+router.get("/get-po-policy-file", getPoPolicyFile);
+router.delete("/delete-po-policy-file", deletePoPolicyFile);
 
 
 router.get("/get-all", getAllVendors);

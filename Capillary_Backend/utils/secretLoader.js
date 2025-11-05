@@ -3,7 +3,7 @@ const {
   GetSecretValueCommand,
 } = require("@aws-sdk/client-secrets-manager");
 
-const secretName = "PORequest_Secrets"; 
+const secretName = "PORequest_Secrets";
 const region = "ap-south-1";
 
 const client = new SecretsManagerClient({ region });
@@ -22,6 +22,7 @@ async function loadSecrets() {
       : {};
 
     for (const [key, value] of Object.entries(secrets)) {
+
       process.env[key] = value;
     }
 
