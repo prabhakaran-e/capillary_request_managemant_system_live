@@ -2,7 +2,7 @@ import axios from "axios";
 
 
 export const userInstance = axios.create({
-  baseURL: import.meta.env.VITE_BASE_URL_SANDBOX,
+  baseURL: import.meta.env.VITE_BASE_URL_PO,
 });
 
 userInstance.interceptors.response.use(

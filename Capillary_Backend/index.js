@@ -29,7 +29,7 @@ async function startServer() {
     // 1️⃣ Load secrets before anything else
    await loadSecrets();
   
-    // require("./utils/poExpiryReminderEmail")
+    require("./utils/poExpiryReminderEmail")
   
 
 

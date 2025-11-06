@@ -370,16 +370,13 @@ style="background-color: #28a745; color: white; padding: 10px 20px; border-radiu
           <p>Please review and approve the request using the link below:</p>
 
           <p style="margin: 20px 0;">
-            <a href="https://porequests-sandbox.corp.capillarytech.com/req-list-table/hod-approve-request/{{hodEmail}}/{{reqpreviewId}}" 
+            <a href="https://porequests.corp.capillarytech.com/req-list-table/hod-approve-request/{{hodEmail}}/{{reqpreviewId}}" 
                style="background-color: #007bff; color: #ffffff; padding: 12px 18px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Review & Approve Request
             </a>
           </p>
 
-          <p>If the above button doesn’t work, use the link below:</p>
-          <p style="word-break: break-all;">
-            https://porequests-sandbox.corp.capillarytech.com/previewrequest/{{hodId}}/hod
-          </p>
+  
 
           <p>Best Regards,</p>
           <p><strong>Capillary Finance</strong></p>

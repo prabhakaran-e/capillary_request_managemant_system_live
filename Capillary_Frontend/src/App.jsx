@@ -151,7 +151,7 @@ function App() {
           {/* <Route path="/settings/system-logs" element={<SystemLogs/>} /> */}
         </Route>
       </Routes>
-      {/* <SessionTimeoutSection/> */}
+      <SessionTimeoutSection />
     </Router>
   );
 }

@@ -7,8 +7,8 @@ const CreateNewReq = require("../models/createNewReqSchema");
 const transporter = nodemailer.createTransport({
   service: "Gmail",
   auth: {
-    user: process.env.EMAIL_ADDRESS_TEST,
-    pass: process.env.EMAIL_PASSWORD_TEST,
+    user: process.env.EMAIL_ADDRESS,
+    pass: process.env.EMAIL_PASSWORD,
   },
   tls: {
     rejectUnauthorized: false, // 👈 prevents self-signed cert error
@@ -51,13 +51,13 @@ const poExpiryNotificationEmail = {
 cron.schedule("56 20 * * *", async () => {
   try {
     console.log("⏰ Running PO expiry cron...");
-    console.log(process.env.EMAIL_ADDRESS_TEST,process.env.EMAIL_PASSWORD_TEST)
+
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const requests = await CreateNewReq.find({
-      isCompleted: true, 
+      isCompleted: true,
       "procurements.poValidTo": { $exists: true },
     });
 
@@ -72,8 +72,8 @@ cron.schedule("56 20 * * *", async () => {
       const diffDays = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
 
       if (diffDays >= 0 && diffDays <= 3) {
-        const hodEmail ="prabhakaran.e@capillarytech.com"
-          // req.firstLevelApproval?.hodEmail || "prabhakaran.e@capillarytech.com";
+        const hodEmail = req.firstLevelApproval?.hodEmail
+
 
         const emailHtml = poExpiryNotificationEmail.html
           .replace("{{reqId}}", req.reqid)
@@ -82,7 +82,7 @@ cron.schedule("56 20 * * *", async () => {
           .replace("{{poLink}}", req.poDocuments?.poLink || "#");
 
         await transporter.sendMail({
-          from: `"Capillary Technology" <${process.env.EMAIL_ADDRESS_TEST}>`,
+          from: `"Capillary Technology" <${process.env.EMAIL_ADDRESS}>`,
           to: hodEmail,
           subject: poExpiryNotificationEmail.subject,
           html: emailHtml,

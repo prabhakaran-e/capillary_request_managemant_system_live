@@ -407,29 +407,26 @@ const sendIndividualEmail = async (
         
         <div class="status-item">
           <div class="status-icon">🔄</div>
-          <div class="status-text">Status: <span class="highlight">${
-            approvalRecord.status
+          <div class="status-text">Status: <span class="highlight">${approvalRecord.status
           } by ${autoDepartment}</span></div>
         </div>
         
         <div class="status-item">
           <div class="status-icon">✅</div>
-          <div class="status-text">Department: <span class="highlight">${
-            approvalRecord.departmentName || approvalRecord.department
+          <div class="status-text">Department: <span class="highlight">${approvalRecord.departmentName || approvalRecord.department
           } </span></div>
         </div>
         
         <div class="status-item">
           <div class="status-icon">📅</div>
-          <div class="status-text">Request Date: <span class="highlight">${
-            approvalRecord.approvalDate
+          <div class="status-text">Request Date: <span class="highlight">${approvalRecord.approvalDate
           }</span></div>
         </div>
       </div>
       
       <p>Please review this request at your earliest convenience. Your prompt attention to this matter is greatly appreciated.</p>
       <div class="action-buttons">
-  <a href="https://porequests-sandbox.corp.capillarytech.com/preview?reqId=${reqId}" 
+  <a href="https://porequests.corp.capillarytech.com/preview?reqId=${reqId}" 
      class="action-button approve-button" target="_blank">
      Preview Request
   </a>
