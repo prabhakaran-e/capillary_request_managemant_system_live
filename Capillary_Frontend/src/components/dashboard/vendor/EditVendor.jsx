@@ -27,6 +27,10 @@ const validationSchema = Yup.object({
   bankName: Yup.string().required("Bank Name is required"),
   hasAgreement: Yup.string().required("Agreement/EL selection is required"),
   natureOfService: Yup.string().required("Nature of Service is required"),
+  panTaxFile: Yup.mixed().nullable(),
+  gstFile: Yup.mixed().nullable(),
+  msmeFile: Yup.mixed().nullable(),
+  bankProofFile: Yup.mixed().nullable(),
 });
 
 const EditVendor = () => {
@@ -34,6 +38,10 @@ const EditVendor = () => {
   const { id } = useParams();
   const [isLoading, setIsLoading] = useState(true);
   const [existingFileName, setExistingFileName] = useState("");
+  const [existingPanTaxFileName, setExistingPanTaxFileName] = useState("");
+  const [existingGstFileName, setExistingGstFileName] = useState("");
+  const [existingMsmeFileName, setExistingMsmeFileName] = useState("");
+  const [existingBankProofFileName, setExistingBankProofFileName] = useState("");
 
   // Fetch Vendor Data on component mount
   useEffect(() => {
@@ -45,10 +53,22 @@ const EditVendor = () => {
 
         if (vendorData.status === 200) {
           const data = vendorData.data;
-          
-          // Set existing file name if available
+
+          // Set existing file names if available
           if (data.agreementFileName) {
             setExistingFileName(data.agreementFileName);
+          }
+          if (data.panTaxFileName) {
+            setExistingPanTaxFileName(data.panTaxFileName);
+          }
+          if (data.gstFileName) {
+            setExistingGstFileName(data.gstFileName);
+          }
+          if (data.msmeFileName) {
+            setExistingMsmeFileName(data.msmeFileName);
+          }
+          if (data.bankProofFileName) {
+            setExistingBankProofFileName(data.bankProofFileName);
           }
 
           formik.setValues({
@@ -71,6 +91,10 @@ const EditVendor = () => {
             questionnaireAnswer: data.questionnaireAnswer || "",
             natureOfService: data.natureOfService || "",
             primarySubsidiary: data.primarySubsidiary || "",
+            panTaxFile: null,
+            gstFile: null,
+            msmeFile: null,
+            bankProofFile: null,
           });
         } else {
           toast.error("Failed to fetch vendor data");
@@ -109,6 +133,10 @@ const EditVendor = () => {
       questionnaireAnswer: "",
       natureOfService: "",
       primarySubsidiary: "",
+      panTaxFile: null,
+      gstFile: null,
+      msmeFile: null,
+      bankProofFile: null,
     },
     validationSchema: validationSchema,
     onSubmit: async (values) => {
@@ -117,12 +145,20 @@ const EditVendor = () => {
 
         // Create FormData for file upload
         const formData = new FormData();
-        
+
         // Append all fields
         Object.keys(values).forEach((key) => {
           if (key === "agreementFile" && values.agreementFile) {
             formData.append("agreementFile", values.agreementFile);
-          } else if (key !== "agreementFile") {
+          } else if (key === "panTaxFile" && values.panTaxFile) {
+            formData.append("panTaxFile", values.panTaxFile);
+          } else if (key === "gstFile" && values.gstFile) {
+            formData.append("gstFile", values.gstFile);
+          } else if (key === "msmeFile" && values.msmeFile) {
+            formData.append("msmeFile", values.msmeFile);
+          } else if (key === "bankProofFile" && values.bankProofFile) {
+            formData.append("bankProofFile", values.bankProofFile);
+          } else if (key !== "agreementFile" && key !== "panTaxFile" && key !== "gstFile" && key !== "msmeFile" && key !== "bankProofFile") {
             formData.append(key, values[key] || "");
           }
         });
@@ -153,6 +189,38 @@ const EditVendor = () => {
     if (file) {
       formik.setFieldValue("agreementFile", file);
       setExistingFileName(""); // Clear existing file name when new file is selected
+    }
+  };
+
+  // Handle document file uploads
+  const handleDocumentFileChange = (e, fieldName, setExistingFileNameFunc) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file size (max 10MB)
+      const maxSize = 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast.error("File size should not exceed 10MB");
+        e.target.value = "";
+        return;
+      }
+
+      // Validate file type
+      const allowedTypes = [
+        "application/pdf",
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error("Only PDF, DOC, DOCX, JPG, JPEG, and PNG files are allowed");
+        e.target.value = "";
+        return;
+      }
+
+      formik.setFieldValue(fieldName, file);
+      setExistingFileNameFunc(""); // Clear existing file name when new file is selected
     }
   };
 
@@ -429,6 +497,146 @@ const EditVendor = () => {
         </div>
       </div>
 
+      {/* Document Upload Section */}
+      <div className="p-4 border rounded-lg border-primary">
+        <h3 className="text-lg font-semibold text-primary mb-4">
+          Document Uploads
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* PAN/TAX/W9 File Upload */}
+          <div>
+            <label htmlFor="panTaxFile" className="block mb-2 font-medium">
+              Upload PAN / TAX / W9 file <span className="text-red-500">*</span>
+            </label>
+            {existingPanTaxFileName && (
+              <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                <p className="text-sm text-blue-800">
+                  Current file: <span className="font-semibold">{existingPanTaxFileName}</span>
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Upload a new file to replace the existing one
+                </p>
+              </div>
+            )}
+            <input
+              type="file"
+              name="panTaxFile"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              onChange={(e) => handleDocumentFileChange(e, "panTaxFile", setExistingPanTaxFileName)}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.values.panTaxFile && (
+              <p className="text-sm text-green-600 mt-1">
+                New file selected: {formik.values.panTaxFile.name}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
+            </p>
+          </div>
+
+          {/* GST File Upload */}
+          <div>
+            <label htmlFor="gstFile" className="block mb-2 font-medium">
+              Upload GST file
+            </label>
+            {existingGstFileName && (
+              <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                <p className="text-sm text-blue-800">
+                  Current file: <span className="font-semibold">{existingGstFileName}</span>
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Upload a new file to replace the existing one
+                </p>
+              </div>
+            )}
+            <input
+              type="file"
+              name="gstFile"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              onChange={(e) => handleDocumentFileChange(e, "gstFile", setExistingGstFileName)}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.values.gstFile && (
+              <p className="text-sm text-green-600 mt-1">
+                New file selected: {formik.values.gstFile.name}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
+            </p>
+          </div>
+
+          {/* MSME File Upload */}
+          <div>
+            <label htmlFor="msmeFile" className="block mb-2 font-medium">
+              Upload MSME file
+            </label>
+            {existingMsmeFileName && (
+              <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                <p className="text-sm text-blue-800">
+                  Current file: <span className="font-semibold">{existingMsmeFileName}</span>
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Upload a new file to replace the existing one
+                </p>
+              </div>
+            )}
+            <input
+              type="file"
+              name="msmeFile"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              onChange={(e) => handleDocumentFileChange(e, "msmeFile", setExistingMsmeFileName)}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.values.msmeFile && (
+              <p className="text-sm text-green-600 mt-1">
+                New file selected: {formik.values.msmeFile.name}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
+            </p>
+          </div>
+
+          {/* Bank Account Proof Upload */}
+          <div>
+            <label htmlFor="bankProofFile" className="block mb-2 font-medium">
+              Upload bank account proof <span className="text-red-500">*</span>
+            </label>
+            {existingBankProofFileName && (
+              <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                <p className="text-sm text-blue-800">
+                  Current file: <span className="font-semibold">{existingBankProofFileName}</span>
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Upload a new file to replace the existing one
+                </p>
+              </div>
+            )}
+            <input
+              type="file"
+              name="bankProofFile"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              onChange={(e) => handleDocumentFileChange(e, "bankProofFile", setExistingBankProofFileName)}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.values.bankProofFile && (
+              <p className="text-sm text-green-600 mt-1">
+                New file selected: {formik.values.bankProofFile.name}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Bank Details */}
       <div className="p-4 border rounded-lg border-primary">
         <h3 className="text-lg font-semibold text-primary mb-4">Bank Details</h3>
@@ -495,7 +703,7 @@ const EditVendor = () => {
       {/* Agreement/EL Section */}
       <div className="p-4 border rounded-lg border-primary">
         <h3 className="text-lg font-semibold text-primary mb-4">Agreement/EL</h3>
-        
+
         {/* Agreement Yes/No Selection */}
         <div className="mb-4">
           <label className="block mb-2 font-medium">

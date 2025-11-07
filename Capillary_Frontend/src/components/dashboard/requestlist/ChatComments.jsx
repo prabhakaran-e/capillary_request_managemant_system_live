@@ -46,6 +46,11 @@ const ChatComments = ({ reqId, reqid }) => {
         "Requestor",
     ];
 
+    // Helper function to display "Po Team" instead of "Head of Finance"
+    const getDisplayName = (topic) => {
+        return topic === "Head of Finance" ? "Po Team" : topic;
+    };
+
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
@@ -435,7 +440,7 @@ const ChatComments = ({ reqId, reqid }) => {
             {/* Mobile header with menu button */}
             <div className="md:hidden bg-primary text-white p-4 flex justify-between items-center">
                 <h3 className="text-lg font-semibold">
-                    {activeChatTopic || "All Discussions"}
+                    {activeChatTopic ? getDisplayName(activeChatTopic) : "All Discussions"}
                 </h3>
                 <button
                     onClick={() => setShowSidebar(!showSidebar)}
@@ -447,9 +452,8 @@ const ChatComments = ({ reqId, reqid }) => {
 
             {/* Sidebar */}
             <div
-                className={`${
-                    showSidebar ? "block" : "hidden"
-                } md:block bg-gray-100 border-r p-4 overflow-y-auto w-full md:w-1/4 lg:w-1/5 absolute md:relative z-10 h-[calc(100%-4rem)] md:h-full`}
+                className={`${showSidebar ? "block" : "hidden"
+                    } md:block bg-gray-100 border-r p-4 overflow-y-auto w-full md:w-1/4 lg:w-1/5 absolute md:relative z-10 h-[calc(100%-4rem)] md:h-full`}
             >
                 <h3 className="text-xl font-semibold text-primary mb-4 hidden md:block">
                     Chat Topics
@@ -457,11 +461,10 @@ const ChatComments = ({ reqId, reqid }) => {
                 <div className="space-y-2">
                     <div
                         onClick={() => handleTopicClick(null)}
-                        className={`p-3 rounded-lg cursor-pointer ${
-                            activeChatTopic === null
+                        className={`p-3 rounded-lg cursor-pointer ${activeChatTopic === null
                                 ? "bg-primary text-white"
                                 : "hover:bg-gray-200"
-                        }`}
+                            }`}
                     >
                         All Discussions
                     </div>
@@ -469,13 +472,12 @@ const ChatComments = ({ reqId, reqid }) => {
                         <div
                             key={index}
                             onClick={() => handleTopicClick(topic)}
-                            className={`p-3 rounded-lg cursor-pointer ${
-                                activeChatTopic === topic
+                            className={`p-3 rounded-lg cursor-pointer ${activeChatTopic === topic
                                     ? "bg-primary text-white"
                                     : "hover:bg-gray-200"
-                            }`}
+                                }`}
                         >
-                            {topic}
+                            {getDisplayName(topic)}
                         </div>
                     ))}
                 </div>
@@ -483,9 +485,8 @@ const ChatComments = ({ reqId, reqid }) => {
 
             {/* Main chat area */}
             <div
-                className={`${
-                    showSidebar ? "hidden md:flex" : "flex"
-                } flex-col flex-1 h-[calc(100%-4rem)] md:h-full`}
+                className={`${showSidebar ? "hidden md:flex" : "flex"
+                    } flex-col flex-1 h-[calc(100%-4rem)] md:h-full`}
             >
                 {/* Chat messages */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -515,18 +516,18 @@ const ChatComments = ({ reqId, reqid }) => {
                                     <p className="break-words">{msg.message}</p>
                                     {(msg.attachmentUrl ||
                                         msg.attachmentBase64) && (
-                                        <div className="mt-2">
-                                            {renderAttachment(
-                                                msg.attachmentUrl,
-                                                msg.attachmentType,
-                                                msg.attachmentName,
-                                                msg.attachmentBase64
-                                            )}
-                                        </div>
-                                    )}
+                                            <div className="mt-2">
+                                                {renderAttachment(
+                                                    msg.attachmentUrl,
+                                                    msg.attachmentType,
+                                                    msg.attachmentName,
+                                                    msg.attachmentBase64
+                                                )}
+                                            </div>
+                                        )}
                                     {msg.topic && (
                                         <span className="text-xs text-primary mt-1 block">
-                                            Tag to: {msg.topic}
+                                            Tag to: {getDisplayName(msg.topic)}
                                         </span>
                                     )}
                                     {msg.taggedEmployeeName && (
@@ -569,11 +570,10 @@ const ChatComments = ({ reqId, reqid }) => {
                             >
                                 <Paperclip
                                     size={20}
-                                    className={`${
-                                        selectedFile
+                                    className={`${selectedFile
                                             ? "text-primary"
                                             : "text-gray-500"
-                                    } ${isUploading ? "animate-pulse" : ""}`}
+                                        } ${isUploading ? "animate-pulse" : ""}`}
                                 />
                             </label>
                         </div>
@@ -598,7 +598,7 @@ const ChatComments = ({ reqId, reqid }) => {
                                             (emp) =>
                                                 emp._id === e.target.value ||
                                                 emp.company_email_id ===
-                                                    e.target.value
+                                                e.target.value
                                         );
                                         setSelectedEmployee(
                                             selectedEmp || null
@@ -639,13 +639,12 @@ const ChatComments = ({ reqId, reqid }) => {
                                     isSendingMessage ||
                                     (!newMessage.trim() && !selectedFile)
                                 }
-                                className={`${
-                                    isUploading ||
-                                    isSendingMessage ||
-                                    (!newMessage.trim() && !selectedFile)
+                                className={`${isUploading ||
+                                        isSendingMessage ||
+                                        (!newMessage.trim() && !selectedFile)
                                         ? "bg-gray-400 cursor-not-allowed"
                                         : "bg-primary hover:bg-primary/90"
-                                } text-white p-2 rounded-lg flex items-center justify-center`}
+                                    } text-white p-2 rounded-lg flex items-center justify-center`}
                             >
                                 {isSendingMessage ? (
                                     <Loader2

@@ -27,24 +27,41 @@ exports.createNewVendor = async (req, res) => {
       const vendorPayload = {
         vendorName: vendor.Name,
         primarySubsidiary: vendor["Primary Subsidiary"],
-        category: vendor.Category,                      // Added
-        entity: vendor.Entity,                          // Added
+        category: vendor.Category,
+        entity: vendor.Entity,
         taxNumber: vendor["Tax Number"],
         gstin: vendor.GSTIN,
+        msme: vendor.MSME || "",                         // ✅ Added
+
         billingAddress: vendor["Billing Address"],
         shippingAddress: vendor["Shipping Address"],
         phone: vendor.Phone,
         email: vendor.Email || "",
         status: vendor.Status || "Active",
 
-        bankAccountNumber: vendor["Bank Account Number"],   // Added
-        ifscSwiftCode: vendor["IFSC/SWIFT Code"],           // Added
-        bankName: vendor["Bank Name"],                      // Added
+        bankAccountNumber: vendor["Bank Account Number"],
+        ifscSwiftCode: vendor["IFSC/SWIFT Code"],
+        bankName: vendor["Bank Name"],
 
-        hasAgreement: vendor["Has Agreement"],              // Added
-        agreementFile: vendor["Agreement File"] || null,    // Added
-        questionnaireAnswer: vendor["Questionnaire Answer"],// Added
-        natureOfService: vendor["Nature of Service"],       // Added
+        hasAgreement: vendor["Has Agreement"],
+        agreementFileUrl: vendor["Agreement File URL"] || "",     // ✅ Added
+        agreementFileName: vendor["Agreement File Name"] || "",   // ✅ Added
+
+        questionnaireAnswer: vendor["Questionnaire Answer"],
+        natureOfService: vendor["Nature of Service"],
+
+        // ✅ New uploads
+        panTaxFileUrl: vendor["PAN/Tax File URL"] || "",
+        panTaxFileName: vendor["PAN/Tax File Name"] || "",
+
+        gstFileUrl: vendor["GST File URL"] || "",
+        gstFileName: vendor["GST File Name"] || "",
+
+        msmeFileUrl: vendor["MSME File URL"] || "",
+        msmeFileName: vendor["MSME File Name"] || "",
+
+        bankProofFileUrl: vendor["Bank Proof File URL"] || "",
+        bankProofFileName: vendor["Bank Proof File Name"] || "",
 
         empId
       };
@@ -78,6 +95,7 @@ exports.createNewVendor = async (req, res) => {
     });
   }
 };
+
 
 
 // Read all vendors
@@ -117,30 +135,61 @@ exports.getVendorById = async (req, res) => {
 // Update a vendor by ID
 exports.updateVendor = async (req, res) => {
   try {
-    console.log("Welcome to update the vendor data", req.body);
     console.log("Updating vendor with ID:", req.params.id);
+    console.log("Received Data:", req.body);
 
-    const data = {
+    const updateData = {
       vendorId: req.body.vendorId,
       vendorName: req.body.vendorName,
       primarySubsidiary: req.body.primarySubsidiary,
+      category: req.body.category,
+      entity: req.body.entity,
       taxNumber: req.body.taxNumber,
       gstin: req.body.gstin,
+      msme: req.body.msme,
+
       billingAddress: req.body.billingAddress,
       shippingAddress: req.body.shippingAddress,
+
       phone: req.body.phone,
       email: req.body.email,
+
+      bankAccountNumber: req.body.bankAccountNumber,
+      ifscSwiftCode: req.body.ifscSwiftCode,
+      bankName: req.body.bankName,
+
+      hasAgreement: req.body.hasAgreement,
+      agreementFileUrl: req.body.agreementFileUrl,
+      agreementFileName: req.body.agreementFileName,
+
+      questionnaireAnswer: req.body.questionnaireAnswer,
+      natureOfService: req.body.natureOfService,
+
+      // File URLs and Names
+      panTaxFileUrl: req.body.panTaxFileUrl,
+      panTaxFileName: req.body.panTaxFileName,
+
+      gstFileUrl: req.body.gstFileUrl,
+      gstFileName: req.body.gstFileName,
+
+      msmeFileUrl: req.body.msmeFileUrl,
+      msmeFileName: req.body.msmeFileName,
+
+      bankProofFileUrl: req.body.bankProofFileUrl,
+      bankProofFileName: req.body.bankProofFileName,
+
+      status: req.body.status,
     };
 
-    console.log("Update data:", data);
+    // Remove undefined keys to avoid overwriting with blank
+    Object.keys(updateData).forEach(
+      (key) => updateData[key] === undefined && delete updateData[key]
+    );
 
     const vendor = await Vendor.findOneAndUpdate(
       { _id: req.params.id },
-      { $set: data },
-      {
-        new: true,
-        runValidators: true,
-      }
+      { $set: updateData },
+      { new: true, runValidators: true }
     );
 
     if (!vendor) {
@@ -149,9 +198,11 @@ exports.updateVendor = async (req, res) => {
         .json({ success: false, message: "Vendor not found" });
     }
 
-    res
-      .status(200)
-      .json({ success: true, message: "Vendor updated successfully", vendor });
+    res.status(200).json({
+      success: true,
+      message: "Vendor updated successfully",
+      vendor,
+    });
   } catch (error) {
     console.error("Error updating vendor:", error);
     res.status(400).json({ success: false, message: error.message });

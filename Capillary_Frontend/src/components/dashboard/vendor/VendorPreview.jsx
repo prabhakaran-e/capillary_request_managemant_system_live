@@ -136,6 +136,18 @@ const VendorPreview = () => {
     "agreementFileUrl",
     "hasAgreement",
     "questionnaireAnswer",
+    "panTaxFile",
+    "panTaxFileName",
+    "panTaxFileUrl",
+    "gstFile",
+    "gstFileName",
+    "gstFileUrl",
+    "msmeFile",
+    "msmeFileName",
+    "msmeFileUrl",
+    "bankProofFile",
+    "bankProofFileName",
+    "bankProofFileUrl",
     "__v",
     "empId",
   ];
@@ -368,6 +380,54 @@ const VendorPreview = () => {
                 </div>
               );
             }
+          )}
+
+          {/* Document Uploads Section */}
+          {(data.panTaxFileUrl || data.gstFileUrl || data.msmeFileUrl || data.bankProofFileUrl) && (
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <SectionHeader icon={FileText} title="Document Uploads" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* PAN/TAX/W9 File */}
+                {data.panTaxFileUrl && (
+                  <div>
+                    <div className="text-sm font-medium text-gray-500 mb-2">
+                      PAN / TAX / W9 File
+                    </div>
+                    <FileCard fileUrl={data.panTaxFileUrl} />
+                  </div>
+                )}
+
+                {/* GST File */}
+                {data.gstFileUrl && (
+                  <div>
+                    <div className="text-sm font-medium text-gray-500 mb-2">
+                      GST File
+                    </div>
+                    <FileCard fileUrl={data.gstFileUrl} />
+                  </div>
+                )}
+
+                {/* MSME File */}
+                {data.msmeFileUrl && (
+                  <div>
+                    <div className="text-sm font-medium text-gray-500 mb-2">
+                      MSME File
+                    </div>
+                    <FileCard fileUrl={data.msmeFileUrl} />
+                  </div>
+                )}
+
+                {/* Bank Account Proof */}
+                {data.bankProofFileUrl && (
+                  <div>
+                    <div className="text-sm font-medium text-gray-500 mb-2">
+                      Bank Account Proof
+                    </div>
+                    <FileCard fileUrl={data.bankProofFileUrl} />
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {/* Agreement/EL Section */}

@@ -5,6 +5,7 @@ import { RegVendorData } from "../../../api/service/adminServices";
 import { toast, ToastContainer } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import uploadFilesVendor from "../../../utils/s3VendorUpload";
+import { Info } from "lucide-react";
 
 // Validation schema
 const validationSchema = Yup.object({
@@ -35,12 +36,17 @@ const validationSchema = Yup.object({
     then: (schema) => schema.required("Questionnaire answer is required"),
     otherwise: (schema) => schema.nullable(),
   }),
+  panTaxFile: Yup.mixed().required("PAN/TAX/W9 file is required"),
+  gstFile: Yup.mixed().nullable(),
+  msmeFile: Yup.mixed().nullable(),
+  bankProofFile: Yup.mixed().required("Bank account proof is required"),
 });
 
 const VendorRegistration = () => {
   const navigate = useNavigate();
   const empId = localStorage.getItem("capEmpId");
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [showVendorIdTooltip, setShowVendorIdTooltip] = useState(false);
 
   const formik = useFormik({
     initialValues: {
@@ -66,39 +72,105 @@ const VendorRegistration = () => {
       natureOfService: "",
       primarySubsidiary: "",
       empId: empId,
+      // New file upload fields
+      panTaxFile: null,
+      panTaxFileUrl: "",
+      panTaxFileName: "",
+      gstFile: null,
+      gstFileUrl: "",
+      gstFileName: "",
+      msmeFile: null,
+      msmeFileUrl: "",
+      msmeFileName: "",
+      bankProofFile: null,
+      bankProofFileUrl: "",
+      bankProofFileName: "",
     },
     validationSchema: validationSchema,
     onSubmit: async (values) => {
       try {
+        setIsUploadingFile(true);
         let fileUrl = "";
         let fileName = "";
+        let panTaxUrl = "";
+        let panTaxName = "";
+        let gstUrl = "";
+        let gstName = "";
+        let msmeUrl = "";
+        let msmeName = "";
+        let bankProofUrl = "";
+        let bankProofName = "";
 
-        // If hasAgreement is "yes" and there's a file, upload it to S3 first
-        if (values.hasAgreement === "yes" && values.agreementFile) {
-          setIsUploadingFile(true);
-          toast.info("Uploading agreement file to S3...");
+        toast.info("Uploading files to S3...");
 
-          try {
+        try {
+          // Upload Agreement file if hasAgreement is "yes"
+          if (values.hasAgreement === "yes" && values.agreementFile) {
             const uploadResponse = await uploadFilesVendor(
               values.agreementFile,
               "agreement"
             );
 
-            console.log("Upload response:", uploadResponse);
-
             if (uploadResponse.status === 200 && uploadResponse.data.fileUrls) {
-              fileUrl = uploadResponse.data.fileUrls[0]; // Get the first file URL
+              fileUrl = uploadResponse.data.fileUrls[0];
               fileName = values.agreementFile.name;
-              toast.success("File uploaded successfully!");
             }
-          } catch (uploadError) {
-            console.error("File upload failed:", uploadError);
-            toast.error("Failed to upload agreement file. Please try again.");
-            setIsUploadingFile(false);
-            return; // Stop submission if file upload fails
-          } finally {
-            setIsUploadingFile(false);
           }
+
+          // Upload PAN/TAX/W9 file (required)
+          if (values.panTaxFile) {
+            const uploadResponse = await uploadFilesVendor(
+              values.panTaxFile,
+              "pan_tax"
+            );
+            if (uploadResponse.status === 200 && uploadResponse.data.fileUrls) {
+              panTaxUrl = uploadResponse.data.fileUrls[0];
+              panTaxName = values.panTaxFile.name;
+            }
+          }
+
+          // Upload GST file (optional)
+          if (values.gstFile) {
+            const uploadResponse = await uploadFilesVendor(
+              values.gstFile,
+              "gst"
+            );
+            if (uploadResponse.status === 200 && uploadResponse.data.fileUrls) {
+              gstUrl = uploadResponse.data.fileUrls[0];
+              gstName = values.gstFile.name;
+            }
+          }
+
+          // Upload MSME file (optional)
+          if (values.msmeFile) {
+            const uploadResponse = await uploadFilesVendor(
+              values.msmeFile,
+              "msme"
+            );
+            if (uploadResponse.status === 200 && uploadResponse.data.fileUrls) {
+              msmeUrl = uploadResponse.data.fileUrls[0];
+              msmeName = values.msmeFile.name;
+            }
+          }
+
+          // Upload Bank Proof file (required)
+          if (values.bankProofFile) {
+            const uploadResponse = await uploadFilesVendor(
+              values.bankProofFile,
+              "bank_proof"
+            );
+            if (uploadResponse.status === 200 && uploadResponse.data.fileUrls) {
+              bankProofUrl = uploadResponse.data.fileUrls[0];
+              bankProofName = values.bankProofFile.name;
+            }
+          }
+
+          toast.success("Files uploaded successfully!");
+        } catch (uploadError) {
+          console.error("File upload failed:", uploadError);
+          toast.error("Failed to upload files. Please try again.");
+          setIsUploadingFile(false);
+          return; // Stop submission if file upload fails
         }
 
         // Prepare data for submission (not FormData, just JSON object)
@@ -124,6 +196,15 @@ const VendorRegistration = () => {
           natureOfService: values.natureOfService,
           primarySubsidiary: values.primarySubsidiary,
           empId: values.empId,
+          // New file URLs and names
+          panTaxFileUrl: panTaxUrl,
+          panTaxFileName: panTaxName,
+          gstFileUrl: gstUrl,
+          gstFileName: gstName,
+          msmeFileUrl: msmeUrl,
+          msmeFileName: msmeName,
+          bankProofFileUrl: bankProofUrl,
+          bankProofFileName: bankProofName,
         };
 
         console.log("Submitting vendor data:", vendorData);
@@ -141,8 +222,10 @@ const VendorRegistration = () => {
         console.error("Registration failed:", error);
         toast.error(
           error.response?.data?.message ||
-            "Registration failed. Please try again."
+          "Registration failed. Please try again."
         );
+      } finally {
+        setIsUploadingFile(false);
       }
     },
   });
@@ -175,6 +258,37 @@ const VendorRegistration = () => {
     }
   };
 
+  // Handle document file uploads (PAN/TAX, GST, MSME, Bank Proof)
+  const handleDocumentFileChange = (e, fieldName) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file size (e.g., max 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        toast.error("File size should not exceed 10MB");
+        e.target.value = ""; // Clear the input
+        return;
+      }
+
+      // Validate file type - allow images and PDFs
+      const allowedTypes = [
+        "application/pdf",
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error("Only PDF, DOC, DOCX, JPG, JPEG, and PNG files are allowed");
+        e.target.value = ""; // Clear the input
+        return;
+      }
+
+      formik.setFieldValue(fieldName, file);
+    }
+  };
+
   return (
     <form
       onSubmit={formik.handleSubmit}
@@ -186,13 +300,31 @@ const VendorRegistration = () => {
 
       {/* Vendor ID - Manual Entry */}
       <div className="p-4 border rounded-lg border-primary">
-        <label htmlFor="vendorId" className="block mb-2 font-medium">
-          Vendor ID <span className="text-red-500">*</span>
-        </label>
+        <div className="flex items-center mb-2">
+          <label htmlFor="vendorId" className="font-medium">
+            Vendor ID <span className="text-red-500">*</span>
+          </label>
+          <div className="relative ml-2">
+            <Info
+              size={18}
+              className="text-primary cursor-pointer hover:text-primary-dark"
+              onMouseEnter={() => setShowVendorIdTooltip(true)}
+              onMouseLeave={() => setShowVendorIdTooltip(false)}
+              onClick={() => setShowVendorIdTooltip(!showVendorIdTooltip)}
+            />
+            {showVendorIdTooltip && (
+              <div className="absolute left-0 top-6 z-10 w-64 p-3 bg-gray-800 text-white text-sm rounded-lg shadow-lg">
+                <p className="font-semibold mb-1">Important:</p>
+                <p>The Vendor ID must be the same as the NetSuite Vendor ID.</p>
+                <div className="absolute -top-2 left-4 w-0 h-0 border-l-8 border-r-8 border-b-8 border-transparent border-b-gray-800"></div>
+              </div>
+            )}
+          </div>
+        </div>
         <input
           type="text"
           name="vendorId"
-          placeholder="Enter Vendor ID"
+          placeholder="Enter Vendor ID (same as NetSuite)"
           value={formik.values.vendorId}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
@@ -457,6 +589,126 @@ const VendorRegistration = () => {
         </div>
       </div>
 
+      {/* Document Upload Section */}
+      <div className="p-4 border rounded-lg border-primary">
+        <h3 className="text-lg font-semibold text-primary mb-4">
+          Document Uploads
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* PAN/TAX/W9 File Upload */}
+          <div>
+            <label htmlFor="panTaxFile" className="block mb-2 font-medium">
+              Upload PAN / TAX / W9 file <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="file"
+              name="panTaxFile"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              onChange={(e) => handleDocumentFileChange(e, "panTaxFile")}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.values.panTaxFile && (
+              <p className="text-sm text-green-600 mt-1">
+                ✓ Selected: {formik.values.panTaxFile.name}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
+            </p>
+            {formik.touched.panTaxFile && formik.errors.panTaxFile && (
+              <span className="text-red-500 text-sm">
+                {formik.errors.panTaxFile}
+              </span>
+            )}
+          </div>
+
+          {/* GST File Upload */}
+          <div>
+            <label htmlFor="gstFile" className="block mb-2 font-medium">
+              Upload GST file
+            </label>
+            <input
+              type="file"
+              name="gstFile"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              onChange={(e) => handleDocumentFileChange(e, "gstFile")}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.values.gstFile && (
+              <p className="text-sm text-green-600 mt-1">
+                ✓ Selected: {formik.values.gstFile.name}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
+            </p>
+            {formik.touched.gstFile && formik.errors.gstFile && (
+              <span className="text-red-500 text-sm">
+                {formik.errors.gstFile}
+              </span>
+            )}
+          </div>
+
+          {/* MSME File Upload */}
+          <div>
+            <label htmlFor="msmeFile" className="block mb-2 font-medium">
+              Upload MSME file
+            </label>
+            <input
+              type="file"
+              name="msmeFile"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              onChange={(e) => handleDocumentFileChange(e, "msmeFile")}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.values.msmeFile && (
+              <p className="text-sm text-green-600 mt-1">
+                ✓ Selected: {formik.values.msmeFile.name}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
+            </p>
+            {formik.touched.msmeFile && formik.errors.msmeFile && (
+              <span className="text-red-500 text-sm">
+                {formik.errors.msmeFile}
+              </span>
+            )}
+          </div>
+
+          {/* Bank Account Proof Upload */}
+          <div>
+            <label htmlFor="bankProofFile" className="block mb-2 font-medium">
+              Upload bank account proof <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="file"
+              name="bankProofFile"
+              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+              onChange={(e) => handleDocumentFileChange(e, "bankProofFile")}
+              onBlur={formik.handleBlur}
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {formik.values.bankProofFile && (
+              <p className="text-sm text-green-600 mt-1">
+                ✓ Selected: {formik.values.bankProofFile.name}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
+            </p>
+            {formik.touched.bankProofFile && formik.errors.bankProofFile && (
+              <span className="text-red-500 text-sm">
+                {formik.errors.bankProofFile}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Bank Details */}
       <div className="p-4 border rounded-lg border-primary">
         <h3 className="text-lg font-semibold text-primary mb-4">Bank Details</h3>
@@ -634,8 +886,8 @@ const VendorRegistration = () => {
           {isUploadingFile
             ? "Uploading File..."
             : formik.isSubmitting
-            ? "Registering..."
-            : "Register Vendor"}
+              ? "Registering..."
+              : "Register Vendor"}
         </button>
       </div>
 
