@@ -9,7 +9,7 @@ import { Info } from "lucide-react";
 
 // Validation schema
 const validationSchema = Yup.object({
-  vendorId: Yup.string().required("Vendor ID is required"),
+  vendorId: Yup.string().nullable(),
   entity: Yup.string().required("Entity is required"),
   category: Yup.string().required("Category is required"),
   vendorName: Yup.string().required("Company Name is required"),
@@ -47,6 +47,7 @@ const VendorRegistration = () => {
   const empId = localStorage.getItem("capEmpId");
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [showVendorIdTooltip, setShowVendorIdTooltip] = useState(false);
+  const [enableVendorId, setEnableVendorId] = useState(false);
 
   const formik = useFormik({
     initialValues: {
@@ -300,39 +301,54 @@ const VendorRegistration = () => {
 
       {/* Vendor ID - Manual Entry */}
       <div className="p-4 border rounded-lg border-primary">
-        <div className="flex items-center mb-2">
-          <label htmlFor="vendorId" className="font-medium">
-            Vendor ID <span className="text-red-500">*</span>
-          </label>
-          <div className="relative ml-2">
-            <Info
-              size={18}
-              className="text-primary cursor-pointer hover:text-primary-dark"
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={enableVendorId} 
+                onChange={() => setEnableVendorId(!enableVendorId)}
+                className="sr-only peer"
+              />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+            <span className="text-sm font-medium text-gray-700">Add Vendor ID (Optional)</span>
+            <div 
+              className="ml-2 relative"
               onMouseEnter={() => setShowVendorIdTooltip(true)}
               onMouseLeave={() => setShowVendorIdTooltip(false)}
-              onClick={() => setShowVendorIdTooltip(!showVendorIdTooltip)}
-            />
-            {showVendorIdTooltip && (
-              <div className="absolute left-0 top-6 z-10 w-64 p-3 bg-gray-800 text-white text-sm rounded-lg shadow-lg">
-                <p className="font-semibold mb-1">Important:</p>
-                <p>The Vendor ID must be the same as the NetSuite Vendor ID.</p>
-                <div className="absolute -top-2 left-4 w-0 h-0 border-l-8 border-r-8 border-b-8 border-transparent border-b-gray-800"></div>
-              </div>
-            )}
+            >
+              <Info className="h-4 w-4 text-gray-400 cursor-help" />
+              {showVendorIdTooltip && (
+                <div className="absolute z-10 left-0 mt-2 w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg">
+                  Toggle to add a Vendor ID if available. This field is optional.
+                </div>
+              )}
+            </div>
           </div>
+          {enableVendorId && (
+            <div className="mt-2">
+              <input
+                type="text"
+                name="vendorId"
+                value={formik.values.vendorId}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                className={`mt-1 block w-full px-3 py-2 border ${
+                  formik.touched.vendorId && formik.errors.vendorId
+                    ? 'border-red-500'
+                    : 'border-gray-300'
+                } rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
+                placeholder="Enter Vendor ID"
+              />
+              {formik.touched.vendorId && formik.errors.vendorId && (
+                <p className="mt-1 text-sm text-red-600">
+                  {formik.errors.vendorId}
+                </p>
+              )}
+            </div>
+          )}
         </div>
-        <input
-          type="text"
-          name="vendorId"
-          placeholder="Enter Vendor ID (same as NetSuite)"
-          value={formik.values.vendorId}
-          onChange={formik.handleChange}
-          onBlur={formik.handleBlur}
-          className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-        />
-        {formik.touched.vendorId && formik.errors.vendorId && (
-          <span className="text-red-500 text-sm">{formik.errors.vendorId}</span>
-        )}
       </div>
 
       {/* Basic Information */}
