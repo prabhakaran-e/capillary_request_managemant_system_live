@@ -2,8 +2,8 @@ const mongoose = require("mongoose");
 
 const vendorSchema = new mongoose.Schema(
   {
-    vendorId: { type: String, required: true },
-    vendorName: { type: String, required: true },
+    vendorId: { type: String },
+    vendorName: { type: String },
 
     primarySubsidiary: { type: String },
     category: { type: String },
@@ -11,7 +11,7 @@ const vendorSchema = new mongoose.Schema(
 
     taxNumber: { type: String },
     gstin: { type: String },
-    msme: { type: String }, // ✅ Added
+    msme: { type: String },
 
     billingAddress: { type: String },
     shippingAddress: { type: String },
@@ -25,10 +25,9 @@ const vendorSchema = new mongoose.Schema(
 
     hasAgreement: { type: String },      // yes/no
     agreementFileUrl: { type: String },
-    agreementFileName: { type: String }, // ✅ Added
+    agreementFileName: { type: String },
 
-    questionnaireAnswer: { type: String },
-    natureOfService: { type: String },
+    natureOfService: { type: String },  // ✅ Only defined once
 
     // ✅ File Upload URLs & Names
     panTaxFileUrl: { type: String },
@@ -45,6 +44,14 @@ const vendorSchema = new mongoose.Schema(
 
     empId: { type: String },
     status: { type: String, default: "Pending" },
+
+    // ✅ Questionnaire data as object (RECOMMENDED)
+    questionnaireData: {
+      counterpartyRequired: { type: String },
+      agreementType: { type: String },
+      serviceType: { type: String },
+      paymentType: { type: String }
+    },
   },
   { timestamps: true }
 );

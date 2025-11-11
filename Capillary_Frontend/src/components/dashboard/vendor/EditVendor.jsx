@@ -27,6 +27,17 @@ const validationSchema = Yup.object({
   bankName: Yup.string().required("Bank Name is required"),
   hasAgreement: Yup.string().required("Agreement/EL selection is required"),
   natureOfService: Yup.string().required("Nature of Service is required"),
+  // ✅ FIXED: Conditional validation for questionnaire
+  questionnaireData: Yup.object().when("hasAgreement", ([hasAgreement], schema) => {
+    return hasAgreement === "no"
+      ? schema.shape({
+        counterpartyRequired: Yup.string().required("Please select an option"),
+        agreementType: Yup.string().required("Please select an option"),
+        serviceType: Yup.string().required("Please select an option"),
+        paymentType: Yup.string().required("Please select an option")
+      })
+      : schema.nullable();
+  }),
   panTaxFile: Yup.mixed().nullable(),
   gstFile: Yup.mixed().nullable(),
   msmeFile: Yup.mixed().nullable(),
@@ -75,6 +86,25 @@ const EditVendor = () => {
 
           const hasVendorId = !!data.vendorId;
           setEnableVendorId(hasVendorId);
+
+          // ✅ Parse questionnaire data if it exists
+          let parsedQuestionnaireData = {
+            counterpartyRequired: "",
+            agreementType: "",
+            serviceType: "",
+            paymentType: ""
+          };
+
+          if (data.questionnaireAnswer) {
+            try {
+              parsedQuestionnaireData = JSON.parse(data.questionnaireAnswer);
+            } catch (e) {
+              console.error("Failed to parse questionnaire data:", e);
+            }
+          } else if (data.questionnaireData) {
+            parsedQuestionnaireData = data.questionnaireData;
+          }
+
           formik.setValues({
             vendorId: data.vendorId || "",
             entity: data.entity || "",
@@ -92,7 +122,7 @@ const EditVendor = () => {
             bankName: data.bankName || "",
             hasAgreement: data.hasAgreement || "",
             agreementFile: null,
-            questionnaireAnswer: data.questionnaireAnswer || "",
+            questionnaireData: parsedQuestionnaireData,
             natureOfService: data.natureOfService || "",
             primarySubsidiary: data.primarySubsidiary || "",
             panTaxFile: null,
@@ -134,7 +164,12 @@ const EditVendor = () => {
       bankName: "",
       hasAgreement: "",
       agreementFile: null,
-      questionnaireAnswer: "",
+      questionnaireData: {
+        counterpartyRequired: "",
+        agreementType: "",
+        serviceType: "",
+        paymentType: ""
+      },
       natureOfService: "",
       primarySubsidiary: "",
       panTaxFile: null,
@@ -162,7 +197,10 @@ const EditVendor = () => {
             formData.append("msmeFile", values.msmeFile);
           } else if (key === "bankProofFile" && values.bankProofFile) {
             formData.append("bankProofFile", values.bankProofFile);
-          } else if (key !== "agreementFile" && key !== "panTaxFile" && key !== "gstFile" && key !== "msmeFile" && key !== "bankProofFile") {
+          } else if (key === "questionnaireData" && values.hasAgreement === "no") {
+            // ✅ Send questionnaire data as JSON string
+            formData.append("questionnaireAnswer", JSON.stringify(values.questionnaireData));
+          } else if (key !== "agreementFile" && key !== "panTaxFile" && key !== "gstFile" && key !== "msmeFile" && key !== "bankProofFile" && key !== "questionnaireData") {
             formData.append(key, values[key] || "");
           }
         });
@@ -541,7 +579,7 @@ const EditVendor = () => {
           {/* PAN/TAX/W9 File Upload */}
           <div>
             <label htmlFor="panTaxFile" className="block mb-2 font-medium">
-              Upload PAN / TAX / W9 file <span className="text-red-500">*</span>
+              Upload PAN / TAX / W9 file
             </label>
             {existingPanTaxFileName && (
               <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
@@ -640,7 +678,7 @@ const EditVendor = () => {
           {/* Bank Account Proof Upload */}
           <div>
             <label htmlFor="bankProofFile" className="block mb-2 font-medium">
-              Upload bank account proof <span className="text-red-500">*</span>
+              Upload bank account proof
             </label>
             {existingBankProofFileName && (
               <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
@@ -810,24 +848,140 @@ const EditVendor = () => {
           </div>
         )}
 
-        {/* Conditional: Text Input if No */}
+        {/* ✅ Conditional: Questionnaire if No Agreement */}
         {formik.values.hasAgreement === "no" && (
-          <div>
-            <label htmlFor="questionnaireAnswer" className="block mb-2 font-medium">
-              Fill the Questionnaire <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              name="questionnaireAnswer"
-              placeholder="Enter your questionnaire answer"
-              value={formik.values.questionnaireAnswer}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              rows="4"
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            {formik.touched.questionnaireAnswer && formik.errors.questionnaireAnswer && (
-              <span className="text-red-500 text-sm">{formik.errors.questionnaireAnswer}</span>
-            )}
+          <div className="space-y-6">
+            <div>
+              <p className="block mb-2 font-medium">
+                1. Is the agreement required by the counterparty? <span className="text-red-500">*</span>
+              </p>
+              <div className="flex gap-6">
+                {['Yes', 'No'].map((option) => (
+                  <label key={option} className="flex items-center">
+                    <input
+                      type="radio"
+                      name="questionnaireData.counterpartyRequired"
+                      value={option}
+                      checked={formik.values.questionnaireData?.counterpartyRequired === option}
+                      onChange={(e) => {
+                        formik.setFieldValue('questionnaireData', {
+                          ...formik.values.questionnaireData,
+                          counterpartyRequired: option
+                        });
+                      }}
+                      onBlur={() => formik.setFieldTouched('questionnaireData.counterpartyRequired', true)}
+                      className="mr-2"
+                    />
+                    {option}
+                  </label>
+                ))}
+              </div>
+              {formik.touched.questionnaireData?.counterpartyRequired &&
+                formik.errors.questionnaireData?.counterpartyRequired && (
+                  <span className="text-red-500 text-sm">
+                    {formik.errors.questionnaireData.counterpartyRequired}
+                  </span>
+                )}
+            </div>
+
+            <div>
+              <p className="block mb-2 font-medium">
+                2. Does the agreement have an auto-renewal clause or a fixed tenure? <span className="text-red-500">*</span>
+              </p>
+              <div className="flex gap-6">
+                {['Auto-renewal', 'Fixed tenure'].map((option) => (
+                  <label key={option} className="flex items-center">
+                    <input
+                      type="radio"
+                      name="questionnaireData.agreementType"
+                      value={option}
+                      checked={formik.values.questionnaireData?.agreementType === option}
+                      onChange={(e) => {
+                        formik.setFieldValue('questionnaireData', {
+                          ...formik.values.questionnaireData,
+                          agreementType: option
+                        });
+                      }}
+                      onBlur={() => formik.setFieldTouched('questionnaireData.agreementType', true)}
+                      className="mr-2"
+                    />
+                    {option}
+                  </label>
+                ))}
+              </div>
+              {formik.touched.questionnaireData?.agreementType &&
+                formik.errors.questionnaireData?.agreementType && (
+                  <span className="text-red-500 text-sm">
+                    {formik.errors.questionnaireData.agreementType}
+                  </span>
+                )}
+            </div>
+
+            <div>
+              <p className="block mb-2 font-medium">
+                3. Is this a one-time or recurring service? <span className="text-red-500">*</span>
+              </p>
+              <div className="flex gap-6">
+                {['One-time', 'Recurring'].map((option) => (
+                  <label key={option} className="flex items-center">
+                    <input
+                      type="radio"
+                      name="questionnaireData.serviceType"
+                      value={option}
+                      checked={formik.values.questionnaireData?.serviceType === option}
+                      onChange={(e) => {
+                        formik.setFieldValue('questionnaireData', {
+                          ...formik.values.questionnaireData,
+                          serviceType: option
+                        });
+                      }}
+                      onBlur={() => formik.setFieldTouched('questionnaireData.serviceType', true)}
+                      className="mr-2"
+                    />
+                    {option}
+                  </label>
+                ))}
+              </div>
+              {formik.touched.questionnaireData?.serviceType &&
+                formik.errors.questionnaireData?.serviceType && (
+                  <span className="text-red-500 text-sm">
+                    {formik.errors.questionnaireData.serviceType}
+                  </span>
+                )}
+            </div>
+
+            <div>
+              <p className="block mb-2 font-medium">
+                4. Is the payment a one-time transaction or a recurring payment? <span className="text-red-500">*</span>
+              </p>
+              <div className="flex gap-6">
+                {['One-time', 'Recurring'].map((option) => (
+                  <label key={option} className="flex items-center">
+                    <input
+                      type="radio"
+                      name="questionnaireData.paymentType"
+                      value={option}
+                      checked={formik.values.questionnaireData?.paymentType === option}
+                      onChange={(e) => {
+                        formik.setFieldValue('questionnaireData', {
+                          ...formik.values.questionnaireData,
+                          paymentType: option
+                        });
+                      }}
+                      onBlur={() => formik.setFieldTouched('questionnaireData.paymentType', true)}
+                      className="mr-2"
+                    />
+                    {option}
+                  </label>
+                ))}
+              </div>
+              {formik.touched.questionnaireData?.paymentType &&
+                formik.errors.questionnaireData?.paymentType && (
+                  <span className="text-red-500 text-sm">
+                    {formik.errors.questionnaireData.paymentType}
+                  </span>
+                )}
+            </div>
           </div>
         )}
       </div>

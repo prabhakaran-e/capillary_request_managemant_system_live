@@ -87,15 +87,35 @@ export const getVendorList = async (empId) => {
   }
 };
 
+// export const RegVendorData = async (formData) => {
+//   try {
+//     const response = await adminServices.post(`/vendors/create`, formData);
+//     return response;
+//   } catch (err) {
+//     return err;
+//   }
+// };
+
+
 export const RegVendorData = async (formData) => {
   try {
-    const response = await adminServices.post(`/vendors/create`, formData);
+    console.log('Sending vendor data to API:', formData); // Log the data being sent
+    const response = await adminServices.post(`/vendors/create`, formData, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    console.log('API Response:', response); // Log the response
     return response;
   } catch (err) {
-    return err;
+    console.error('Error in RegVendorData:', {
+      message: err.message,
+      response: err.response?.data,
+      status: err.response?.status,
+    });
+    throw err; // Re-throw the error to be caught by the component
   }
 };
-
 export const fetchAllVendorData = async () => {
   try {
     const response = await adminServices.get(`/vendors/get-all`);
@@ -124,7 +144,11 @@ export const getVendorData = async (id) => {
 
 export const updateVendorData = async (id, formData) => {
   try {
-    const response = await adminServices.put(`/vendors/update/${id}`, formData);
+    const response = await adminServices.put(`/vendors/update/${id}`, formData, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
     return response;
   } catch (err) {
     return err;

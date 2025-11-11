@@ -7,7 +7,6 @@ import { useNavigate } from "react-router-dom";
 import uploadFilesVendor from "../../../utils/s3VendorUpload";
 import { Info } from "lucide-react";
 
-// Validation schema
 const validationSchema = Yup.object({
   vendorId: Yup.string().nullable(),
   entity: Yup.string().required("Entity is required"),
@@ -31,10 +30,16 @@ const validationSchema = Yup.object({
     then: (schema) => schema.required("Agreement file is required"),
     otherwise: (schema) => schema.nullable(),
   }),
-  questionnaireAnswer: Yup.string().when("hasAgreement", {
-    is: "no",
-    then: (schema) => schema.required("Questionnaire answer is required"),
-    otherwise: (schema) => schema.nullable(),
+  // ✅ FIXED: Conditional validation for questionnaire
+  questionnaireData: Yup.object().when("hasAgreement", ([hasAgreement], schema) => {
+    return hasAgreement === "no"
+      ? schema.shape({
+          counterpartyRequired: Yup.string().required("Please select an option"),
+          agreementType: Yup.string().required("Please select an option"),
+          serviceType: Yup.string().required("Please select an option"),
+          paymentType: Yup.string().required("Please select an option")
+        })
+      : schema.nullable();
   }),
   panTaxFile: Yup.mixed().required("PAN/TAX/W9 file is required"),
   gstFile: Yup.mixed().nullable(),
@@ -54,26 +59,30 @@ const VendorRegistration = () => {
       vendorId: "",
       entity: "",
       category: "",
-      vendorName: "", // Maps to Company Name
+      vendorName: "",
       email: "",
       phone: "",
-      billingAddress: "", // Maps to Address
+      billingAddress: "",
       shippingAddress: "",
-      taxNumber: "", // Maps to PAN/Tax Registration/W9
+      taxNumber: "",
       gstin: "",
       msme: "",
       bankAccountNumber: "",
       ifscSwiftCode: "",
       bankName: "",
-      hasAgreement: "", // yes or no
+      hasAgreement: "",
       agreementFile: null,
-      agreementFileUrl: "", // Store the S3 URL
-      agreementFileName: "", // Store the file name
-      questionnaireAnswer: "",
+      agreementFileUrl: "",
+      agreementFileName: "",
+      questionnaireData: {
+        counterpartyRequired: "",
+        agreementType: "",
+        serviceType: "",
+        paymentType: ""
+      },
       natureOfService: "",
       primarySubsidiary: "",
       empId: empId,
-      // New file upload fields
       panTaxFile: null,
       panTaxFileUrl: "",
       panTaxFileName: "",
@@ -171,10 +180,10 @@ const VendorRegistration = () => {
           console.error("File upload failed:", uploadError);
           toast.error("Failed to upload files. Please try again.");
           setIsUploadingFile(false);
-          return; // Stop submission if file upload fails
+          return;
         }
 
-        // Prepare data for submission (not FormData, just JSON object)
+        // Prepare data for submission
         const vendorData = {
           vendorId: values.vendorId,
           entity: values.entity,
@@ -191,13 +200,11 @@ const VendorRegistration = () => {
           ifscSwiftCode: values.ifscSwiftCode,
           bankName: values.bankName,
           hasAgreement: values.hasAgreement,
-          agreementFileUrl: fileUrl, // S3 file URL
-          agreementFileName: fileName, // Original file name
-          questionnaireAnswer: values.questionnaireAnswer,
+          agreementFileUrl: fileUrl,
+          agreementFileName: fileName,
           natureOfService: values.natureOfService,
           primarySubsidiary: values.primarySubsidiary,
           empId: values.empId,
-          // New file URLs and names
           panTaxFileUrl: panTaxUrl,
           panTaxFileName: panTaxName,
           gstFileUrl: gstUrl,
@@ -206,6 +213,10 @@ const VendorRegistration = () => {
           msmeFileName: msmeName,
           bankProofFileUrl: bankProofUrl,
           bankProofFileName: bankProofName,
+          // Include questionnaire data if no agreement
+          ...(values.hasAgreement === 'no' && {
+            questionnaireAnswer: JSON.stringify(values.questionnaireData),
+          }),
         };
 
         console.log("Submitting vendor data:", vendorData);
@@ -235,15 +246,13 @@ const VendorRegistration = () => {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file size (e.g., max 10MB)
-      const maxSize = 10 * 1024 * 1024; // 10MB
+      const maxSize = 10 * 1024 * 1024;
       if (file.size > maxSize) {
         toast.error("File size should not exceed 10MB");
-        e.target.value = ""; // Clear the input
+        e.target.value = "";
         return;
       }
 
-      // Validate file type
       const allowedTypes = [
         "application/pdf",
         "application/msword",
@@ -251,7 +260,7 @@ const VendorRegistration = () => {
       ];
       if (!allowedTypes.includes(file.type)) {
         toast.error("Only PDF, DOC, and DOCX files are allowed");
-        e.target.value = ""; // Clear the input
+        e.target.value = "";
         return;
       }
 
@@ -259,19 +268,17 @@ const VendorRegistration = () => {
     }
   };
 
-  // Handle document file uploads (PAN/TAX, GST, MSME, Bank Proof)
+  // Handle document file uploads
   const handleDocumentFileChange = (e, fieldName) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file size (e.g., max 10MB)
-      const maxSize = 10 * 1024 * 1024; // 10MB
+      const maxSize = 10 * 1024 * 1024;
       if (file.size > maxSize) {
         toast.error("File size should not exceed 10MB");
-        e.target.value = ""; // Clear the input
+        e.target.value = "";
         return;
       }
 
-      // Validate file type - allow images and PDFs
       const allowedTypes = [
         "application/pdf",
         "image/jpeg",
@@ -282,7 +289,7 @@ const VendorRegistration = () => {
       ];
       if (!allowedTypes.includes(file.type)) {
         toast.error("Only PDF, DOC, DOCX, JPG, JPEG, and PNG files are allowed");
-        e.target.value = ""; // Clear the input
+        e.target.value = "";
         return;
       }
 
@@ -304,16 +311,16 @@ const VendorRegistration = () => {
         <div className="mb-4">
           <div className="flex items-center gap-2 mb-2">
             <label className="relative inline-flex items-center cursor-pointer">
-              <input 
-                type="checkbox" 
-                checked={enableVendorId} 
+              <input
+                type="checkbox"
+                checked={enableVendorId}
                 onChange={() => setEnableVendorId(!enableVendorId)}
                 className="sr-only peer"
               />
               <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
             </label>
             <span className="text-sm font-medium text-gray-700">Add Vendor ID (Optional)</span>
-            <div 
+            <div
               className="ml-2 relative"
               onMouseEnter={() => setShowVendorIdTooltip(true)}
               onMouseLeave={() => setShowVendorIdTooltip(false)}
@@ -334,11 +341,10 @@ const VendorRegistration = () => {
                 value={formik.values.vendorId}
                 onChange={formik.handleChange}
                 onBlur={formik.handleBlur}
-                className={`mt-1 block w-full px-3 py-2 border ${
-                  formik.touched.vendorId && formik.errors.vendorId
-                    ? 'border-red-500'
-                    : 'border-gray-300'
-                } rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
+                className={`mt-1 block w-full px-3 py-2 border ${formik.touched.vendorId && formik.errors.vendorId
+                  ? 'border-red-500'
+                  : 'border-gray-300'
+                  } rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
                 placeholder="Enter Vendor ID"
               />
               {formik.touched.vendorId && formik.errors.vendorId && (
@@ -397,7 +403,7 @@ const VendorRegistration = () => {
             )}
           </div>
 
-          {/* Company Name (vendorName) */}
+          {/* Company Name */}
           <div>
             <label htmlFor="vendorName" className="block mb-2 font-medium">
               Company Name <span className="text-red-500">*</span>
@@ -485,7 +491,7 @@ const VendorRegistration = () => {
           Address Details
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Billing Address (Address) */}
+          {/* Billing Address */}
           <div>
             <label htmlFor="billingAddress" className="block mb-2 font-medium">
               Address <span className="text-red-500">*</span>
@@ -506,7 +512,7 @@ const VendorRegistration = () => {
             )}
           </div>
 
-          {/* Shipping Address (Optional) */}
+          {/* Shipping Address */}
           <div>
             <label htmlFor="shippingAddress" className="block mb-2 font-medium">
               Shipping Address
@@ -529,7 +535,7 @@ const VendorRegistration = () => {
           Tax & Registration Details
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* PAN/Tax Registration/W9 (taxNumber) */}
+          {/* PAN/Tax Registration/W9 */}
           <div>
             <label htmlFor="taxNumber" className="block mb-2 font-medium">
               PAN/Tax Registration/W9 <span className="text-red-500">*</span>
@@ -588,7 +594,7 @@ const VendorRegistration = () => {
             )}
           </div>
 
-          {/* Primary Subsidiary (Optional) */}
+          {/* Primary Subsidiary */}
           <div>
             <label htmlFor="primarySubsidiary" className="block mb-2 font-medium">
               Primary Subsidiary
@@ -867,27 +873,132 @@ const VendorRegistration = () => {
           </div>
         )}
 
-        {/* Conditional: Text Input if No */}
+        {/* Conditional: Questionnaire if No Agreement */}
         {formik.values.hasAgreement === "no" && (
-          <div>
-            <label htmlFor="questionnaireAnswer" className="block mb-2 font-medium">
-              Fill the Questionnaire <span className="text-red-500">*</span>
-            </label>
-            <textarea
-              name="questionnaireAnswer"
-              placeholder="Enter your questionnaire answer"
-              value={formik.values.questionnaireAnswer}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              rows="4"
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            {formik.touched.questionnaireAnswer &&
-              formik.errors.questionnaireAnswer && (
-                <span className="text-red-500 text-sm">
-                  {formik.errors.questionnaireAnswer}
-                </span>
-              )}
+          <div className="space-y-6">
+            <div>
+              <p className="block mb-2 font-medium">
+                1. Is the agreement required by the counterparty? <span className="text-red-500">*</span>
+              </p>
+              <div className="flex gap-6">
+                {['Yes', 'No'].map((option) => (
+                  <label key={option} className="flex items-center">
+                    <input
+                      type="radio"
+                      name="questionnaireData.counterpartyRequired"
+                      value={option}
+                      checked={formik.values.questionnaireData?.counterpartyRequired === option}
+                      onChange={() => {
+                        formik.setFieldValue('questionnaireData.counterpartyRequired', option);
+                        formik.setFieldTouched('questionnaireData.counterpartyRequired', true, false);
+                      }}
+                      onBlur={formik.handleBlur}
+                      className="mr-2"
+                    />
+                    {option}
+                  </label>
+                ))}
+              </div>
+              {formik.touched.questionnaireData?.counterpartyRequired &&
+                formik.errors.questionnaireData?.counterpartyRequired && (
+                  <span className="text-red-500 text-sm">
+                    {formik.errors.questionnaireData.counterpartyRequired}
+                  </span>
+                )}
+            </div>
+
+            <div>
+              <p className="block mb-2 font-medium">
+                2. Does the agreement have an auto-renewal clause or a fixed tenure? <span className="text-red-500">*</span>
+              </p>
+              <div className="flex gap-6">
+                {['Auto-renewal', 'Fixed tenure'].map((option) => (
+                  <label key={option} className="flex items-center">
+                    <input
+                      type="radio"
+                      name="questionnaireData.agreementType"
+                      value={option}
+                      checked={formik.values.questionnaireData?.agreementType === option}
+                      onChange={() => {
+                        formik.setFieldValue('questionnaireData.agreementType', option);
+                        formik.setFieldTouched('questionnaireData.agreementType', true, false);
+                      }}
+                      onBlur={formik.handleBlur}
+                      className="mr-2"
+                    />
+                    {option}
+                  </label>
+                ))}
+              </div>
+              {formik.touched.questionnaireData?.agreementType &&
+                formik.errors.questionnaireData?.agreementType && (
+                  <span className="text-red-500 text-sm">
+                    {formik.errors.questionnaireData.agreementType}
+                  </span>
+                )}
+            </div>
+
+            <div>
+              <p className="block mb-2 font-medium">
+                3. Is this a one-time or recurring service? <span className="text-red-500">*</span>
+              </p>
+              <div className="flex gap-6">
+                {['One-time', 'Recurring'].map((option) => (
+                  <label key={option} className="flex items-center">
+                    <input
+                      type="radio"
+                      name="questionnaireData.serviceType"
+                      value={option}
+                      checked={formik.values.questionnaireData?.serviceType === option}
+                      onChange={() => {
+                        formik.setFieldValue('questionnaireData.serviceType', option);
+                        formik.setFieldTouched('questionnaireData.serviceType', true, false);
+                      }}
+                      onBlur={formik.handleBlur}
+                      className="mr-2"
+                    />
+                    {option}
+                  </label>
+                ))}
+              </div>
+              {formik.touched.questionnaireData?.serviceType &&
+                formik.errors.questionnaireData?.serviceType && (
+                  <span className="text-red-500 text-sm">
+                    {formik.errors.questionnaireData.serviceType}
+                  </span>
+                )}
+            </div>
+
+            <div>
+              <p className="block mb-2 font-medium">
+                4. Is the payment a one-time transaction or a recurring payment? <span className="text-red-500">*</span>
+              </p>
+              <div className="flex gap-6">
+                {['One-time', 'Recurring'].map((option) => (
+                  <label key={option} className="flex items-center">
+                    <input
+                      type="radio"
+                      name="questionnaireData.paymentType"
+                      value={option}
+                      checked={formik.values.questionnaireData?.paymentType === option}
+                      onChange={() => {
+                        formik.setFieldValue('questionnaireData.paymentType', option);
+                        formik.setFieldTouched('questionnaireData.paymentType', true, false);
+                      }}
+                      onBlur={formik.handleBlur}
+                      className="mr-2"
+                    />
+                    {option}
+                  </label>
+                ))}
+              </div>
+              {formik.touched.questionnaireData?.paymentType &&
+                formik.errors.questionnaireData?.paymentType && (
+                  <span className="text-red-500 text-sm">
+                    {formik.errors.questionnaireData.paymentType}
+                  </span>
+                )}
+            </div>
           </div>
         )}
       </div>

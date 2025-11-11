@@ -10,6 +10,7 @@ import {
   FileText,
   Download,
   ExternalLink,
+  CheckCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -119,6 +120,59 @@ const FileCard = ({ fileUrl }) => {
   );
 };
 
+// ✅ NEW: Questionnaire Display Component
+const QuestionnaireCard = ({ questionnaireData }) => {
+  // Map the questionnaire keys to actual questions
+  const questionMap = {
+    counterpartyRequired: "Is the agreement required by the counterparty?",
+    agreementType: "Does the agreement have an auto-renewal clause or a fixed tenure?",
+    serviceType: "Is this a one-time or recurring service?",
+    paymentType: "Is the payment a one-time transaction or a recurring payment?"
+  };
+
+  if (!questionnaireData || typeof questionnaireData !== 'object') {
+    return (
+      <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+        <p className="text-sm text-gray-500">
+          No questionnaire data available
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {Object.entries(questionnaireData).map(([key, value], index) => (
+        <div
+          key={key}
+          className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200 hover:border-green-300 transition-all"
+        >
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 mt-1">
+              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                <span className="text-sm font-semibold text-green-700">
+                  {index + 1}
+                </span>
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-medium text-gray-700 mb-2">
+                {questionMap[key] || key}
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <span className="text-base font-semibold text-gray-900">
+                  {value}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const VendorPreview = () => {
   const { vendorId } = useParams();
   const navigate = useNavigate();
@@ -136,6 +190,7 @@ const VendorPreview = () => {
     "agreementFileUrl",
     "hasAgreement",
     "questionnaireAnswer",
+    "questionnaireData", // ✅ Added to exclude from additional info
     "panTaxFile",
     "panTaxFileName",
     "panTaxFileUrl",
@@ -317,7 +372,7 @@ const VendorPreview = () => {
             </button>
             <div className="flex items-center gap-4">
               <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
-                {data.vendorId}
+                {data.vendorId || "N/A"}
               </span>
               {data.status === "Active" && (
                 <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
@@ -430,7 +485,7 @@ const VendorPreview = () => {
             </div>
           )}
 
-          {/* Agreement/EL Section */}
+          {/* ✅ UPDATED: Agreement/EL Section with Questionnaire Display */}
           {data.hasAgreement && (
             <div className="bg-white rounded-lg shadow-sm p-6">
               <SectionHeader icon={FileText} title="Agreement/EL" />
@@ -451,19 +506,18 @@ const VendorPreview = () => {
 
               {data.hasAgreement === "no" && (
                 <div>
-                  {data.questionnaireAnswer ? (
-                    <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                      <div className="text-sm font-medium text-gray-500 mb-2">
-                        Questionnaire Answer
-                      </div>
-                      <div className="text-base text-gray-900 whitespace-pre-wrap">
-                        {data.questionnaireAnswer}
-                      </div>
+                  <div className="mb-3">
+                    <div className="inline-flex items-center px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                      <Info className="h-4 w-4 mr-1.5" />
+                      Questionnaire Responses
                     </div>
+                  </div>
+                  {data.questionnaireData ? (
+                    <QuestionnaireCard questionnaireData={data.questionnaireData} />
                   ) : (
                     <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
                       <p className="text-sm text-gray-500">
-                        No questionnaire answer provided
+                        No questionnaire data available
                       </p>
                     </div>
                   )}

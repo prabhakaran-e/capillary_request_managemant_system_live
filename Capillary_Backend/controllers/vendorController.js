@@ -7,15 +7,43 @@ const poPolicyFile = require("../models/poPolicyFile");
 exports.createVendor = async (req, res) => {
   try {
     console.log("Create Vendor Request:", req.body);
+
+    // Handle questionnaireAnswer safely
+    if (req.body.questionnaireAnswer) {
+      let questionnaireData = {};
+
+      // If it's a string, try parsing JSON
+      if (typeof req.body.questionnaireAnswer === "string") {
+        try {
+          questionnaireData = JSON.parse(req.body.questionnaireAnswer);
+        } catch (err) {
+          console.error("Invalid questionnaireAnswer JSON:", err);
+          return res.status(400).json({
+            message: "Invalid questionnaireAnswer format. Must be a valid JSON string."
+          });
+        }
+      } else if (typeof req.body.questionnaireAnswer === "object") {
+        questionnaireData = req.body.questionnaireAnswer;
+      }
+
+      // Assign to schema field
+      req.body.questionnaireData = questionnaireData;
+      delete req.body.questionnaireAnswer; // clean up unused field
+    }
+
+    // Create and save vendor
     const vendor = new Vendor(req.body);
     await vendor.save();
-    res.status(201).json({ message: "Vendor created successfully", vendor });
+
+    res.status(201).json({
+      message: "Vendor created successfully",
+      vendor
+    });
   } catch (error) {
     console.error("Error creating vendor:", error);
     res.status(400).json({ message: error.message });
   }
 };
-
 exports.createNewVendor = async (req, res) => {
   try {
     const { empId } = req.params;
@@ -24,6 +52,27 @@ exports.createNewVendor = async (req, res) => {
     const vendorDataArray = req.body.data.map(async (vendor) => {
       const vendorId = vendor.ID;
 
+      // Parse questionnaire data
+      let questionnaireData = {};
+      let questionnaireAnswer = "";
+
+      try {
+        if (vendor["Questionnaire Answer"]) {
+          if (typeof vendor["Questionnaire Answer"] === 'string') {
+            questionnaireData = JSON.parse(vendor["Questionnaire Answer"]);
+            questionnaireAnswer = vendor["Questionnaire Answer"];
+          } else if (typeof vendor["Questionnaire Answer"] === 'object') {
+            questionnaireData = vendor["Questionnaire Answer"];
+            questionnaireAnswer = JSON.stringify(vendor["Questionnaire Answer"]);
+          }
+        }
+      } catch (error) {
+        console.error("Error parsing questionnaire data:", error);
+        // In case of error, store empty data
+        questionnaireData = {};
+        questionnaireAnswer = "";
+      }
+
       const vendorPayload = {
         vendorName: vendor.Name,
         primarySubsidiary: vendor["Primary Subsidiary"],
@@ -31,38 +80,29 @@ exports.createNewVendor = async (req, res) => {
         entity: vendor.Entity,
         taxNumber: vendor["Tax Number"],
         gstin: vendor.GSTIN,
-        msme: vendor.MSME || "",                         // ✅ Added
-
+        msme: vendor.MSME || "",
         billingAddress: vendor["Billing Address"],
         shippingAddress: vendor["Shipping Address"],
         phone: vendor.Phone,
         email: vendor.Email || "",
         status: vendor.Status || "Active",
-
         bankAccountNumber: vendor["Bank Account Number"],
         ifscSwiftCode: vendor["IFSC/SWIFT Code"],
         bankName: vendor["Bank Name"],
-
         hasAgreement: vendor["Has Agreement"],
-        agreementFileUrl: vendor["Agreement File URL"] || "",     // ✅ Added
-        agreementFileName: vendor["Agreement File Name"] || "",   // ✅ Added
-
-        questionnaireAnswer: vendor["Questionnaire Answer"],
+        agreementFileUrl: vendor["Agreement File URL"] || "",
+        agreementFileName: vendor["Agreement File Name"] || "",
+        questionnaireAnswer: questionnaireAnswer,
+        questionnaireData: questionnaireData,
         natureOfService: vendor["Nature of Service"],
-
-        // ✅ New uploads
         panTaxFileUrl: vendor["PAN/Tax File URL"] || "",
         panTaxFileName: vendor["PAN/Tax File Name"] || "",
-
         gstFileUrl: vendor["GST File URL"] || "",
         gstFileName: vendor["GST File Name"] || "",
-
         msmeFileUrl: vendor["MSME File URL"] || "",
         msmeFileName: vendor["MSME File Name"] || "",
-
         bankProofFileUrl: vendor["Bank Proof File URL"] || "",
         bankProofFileName: vendor["Bank Proof File Name"] || "",
-
         empId
       };
 
@@ -162,7 +202,6 @@ exports.updateVendor = async (req, res) => {
       agreementFileUrl: req.body.agreementFileUrl,
       agreementFileName: req.body.agreementFileName,
 
-      questionnaireAnswer: req.body.questionnaireAnswer,
       natureOfService: req.body.natureOfService,
 
       // File URLs and Names
@@ -181,7 +220,28 @@ exports.updateVendor = async (req, res) => {
       status: req.body.status,
     };
 
-    // Remove undefined keys to avoid overwriting with blank
+    // ✅ Handle questionnaireAnswer
+    if (req.body.questionnaireAnswer) {
+      let questionnaireData = {};
+
+      if (typeof req.body.questionnaireAnswer === "string") {
+        try {
+          questionnaireData = JSON.parse(req.body.questionnaireAnswer);
+        } catch (err) {
+          console.error("Invalid questionnaireAnswer JSON:", err);
+          return res.status(400).json({
+            success: false,
+            message: "Invalid questionnaireAnswer format. Must be valid JSON string."
+          });
+        }
+      } else if (typeof req.body.questionnaireAnswer === "object") {
+        questionnaireData = req.body.questionnaireAnswer;
+      }
+
+      updateData.questionnaireData = questionnaireData;
+    }
+
+    // Remove undefined keys
     Object.keys(updateData).forEach(
       (key) => updateData[key] === undefined && delete updateData[key]
     );
