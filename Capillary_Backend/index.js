@@ -49,7 +49,7 @@ async function startServer() {
     app.use(cors());
 
     // ⭐ ADDED SECURITY MIDDLEWARE
-    app.use(helmet()); // ADDED
+    // app.use(helmet()); // ADDED
 
     // ⭐ ADDED RATE LIMITING — protects from bot attacks
     app.use(
