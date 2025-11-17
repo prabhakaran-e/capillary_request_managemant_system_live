@@ -5,6 +5,11 @@ const dotenv = require("dotenv");
 const db = require("./config/db");
 const cors = require("cors");
 const path = require("path");
+
+// ⭐ ADDED SECURITY PACKAGES
+const helmet = require("helmet");          // ADDED
+const rateLimit = require("express-rate-limit"); // ADDED
+
 const userRoutes = require("./routes/userRoutes");
 const empRoutes = require("./routes/empRoutes");
 const vendorRoutes = require("./routes/vendorRoutes");
@@ -26,30 +31,39 @@ dotenv.config();
 
 async function startServer() {
   try {
-    // 1️⃣ Load secrets before anything else
     await loadSecrets();
-
-    require("./utils/poExpiryReminderEmail")
-
-
-
-    // 2️⃣ Connect to DB
+    require("./utils/poExpiryReminderEmail");
     await db();
 
-    // 3️⃣ Setup Express app
     const app = express();
-    // const port = 3001;
     const port = 5005;
 
+    // CORS headers
     app.use((req, res, next) => {
       res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
       res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
       next();
     });
 
+    // 🌐 Basic middlewares
     app.use(cors());
+
+    // ⭐ ADDED SECURITY MIDDLEWARE
+    app.use(helmet()); // ADDED
+
+    // ⭐ ADDED RATE LIMITING — protects from bot attacks
+    app.use(
+      rateLimit({
+        windowMs: 1 * 60 * 1000, // 1 minute
+        max: 200,                // safely higher limit
+      })
+    ); // ADDED
+
+    // ⭐ IMPROVED JSON PARSER (prevents crashes)
+    app.use(express.json({ limit: "100mb", strict: false })); // ADDED better JSON parser
     app.use(bodyParser.json({ limit: "100mb" }));
     app.use(bodyParser.urlencoded({ extended: true, limit: "100mb" }));
+
     app.use(express.static(path.join(__dirname, "dist")));
 
     // Routes
@@ -74,9 +88,34 @@ async function startServer() {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
 
+    // ⭐ ERROR HANDLER — invalid JSON requests
+    app.use((err, req, res, next) => {
+      if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
+        console.log("❌ Invalid JSON received");
+        return res.status(400).json({ message: "Invalid JSON format" });
+      }
+      next(err);
+    }); // ADDED
+
+    // ⭐ ERROR HANDLER — bad URLs (/../../etc/passwd attacks)
+    app.use((err, req, res, next) => {
+      if (err instanceof URIError) {
+        console.log("❌ Blocked bad URI:", req.url);
+        return res.status(400).send("Bad request");
+      }
+      next(err);
+    }); // ADDED
+
+    // ⭐ GLOBAL ERROR HANDLER (prevents app crash ➝ 502)
+    app.use((err, req, res, next) => {
+      console.error("🔥 Global Server Error:", err);
+      res.status(500).json({ message: "Server error" });
+    }); // ADDED
+
     app.listen(port, () => {
       console.log(`Server is running on http://localhost:${port}`);
     });
+
   } catch (err) {
     console.error("Failed to start server:", err);
     process.exit(1);
