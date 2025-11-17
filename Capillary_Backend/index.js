@@ -50,6 +50,26 @@ async function startServer() {
 
     // ⭐ ADDED SECURITY MIDDLEWARE
     // app.use(helmet()); // ADDED
+    app.use(
+      helmet({
+        contentSecurityPolicy: {
+          useDefaults: true,
+          directives: {
+            "script-src": [
+              "'self'",
+              "https://accounts.google.com",   // allow Google OAuth
+              "https://apis.google.com"        // allow Google APIs
+            ],
+            "frame-src": [
+              "'self'",
+              "https://accounts.google.com"
+            ],
+            "connect-src": ["'self'", "*"], // optional if API calls blocked
+          },
+        },
+      })
+    );
+
 
     // ⭐ ADDED RATE LIMITING — protects from bot attacks
     app.use(
