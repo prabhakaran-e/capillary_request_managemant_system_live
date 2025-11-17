@@ -36,7 +36,7 @@ async function startServer() {
     await db();
 
     const app = express();
-    const port = 5005;
+    const port = 5000;
 
     // CORS headers
     app.use((req, res, next) => {
