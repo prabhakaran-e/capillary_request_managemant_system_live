@@ -52,6 +52,27 @@ const vendorSchema = new mongoose.Schema(
       serviceType: { type: String },
       paymentType: { type: String }
     },
+    isDeviation: { type: Boolean, default: false },
+    isLegalTeamVerified: { type: Boolean, default: false },
+    isVendorTeamVerified: { type: Boolean, default: false },
+
+
+
+    isLegalTeamVerifiedLogs: [{
+      status: { type: Boolean, default: false },
+      verifiedBy: { type: String },
+      verifiedAt: { type: Date },
+      verifiedUserId: { type: String },
+      comments: [{ type: String }]
+    }],
+    isVendorTeamVerifiedLogs: [{
+      status: { type: Boolean, default: false },
+      verifiedBy: { type: String },
+      verifiedAt: { type: Date },
+      verifiedUserId: { type: String },
+      comments: [{ type: String }]
+    }]
+
   },
   { timestamps: true }
 );

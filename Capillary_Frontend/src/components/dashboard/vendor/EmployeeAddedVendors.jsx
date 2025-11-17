@@ -9,6 +9,7 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  FileText,
 } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -21,11 +22,12 @@ import {
   getVendorList,
 } from "../../../api/service/adminServices";
 
-const EmployeeAddedVendors  = () => {
+const EmployeeAddedVendors = () => {
   const empId = localStorage.getItem("capEmpId")
   console.log(empId)
   const navigate = useNavigate();
   const [personalData, setPersonalData] = useState([]);
+  const [vendorPolicy, setVendorPolicy] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -41,7 +43,12 @@ const EmployeeAddedVendors  = () => {
       setIsLoading(true);
       try {
         const response = await getVendorList(empId);
-        setPersonalData(response.data);
+        console.log(response)
+        setPersonalData(response.data.vendors);
+        // Set vendor policy if available in response
+        if (response.data.vendorPolicyFiles && response.data.vendorPolicyFiles.length > 0) {
+          setVendorPolicy(response.data.vendorPolicyFiles[0]);
+        }
       } catch (err) {
         toast.error("Error fetching vendor data");
         console.error("Error in fetching the vendor data", err);
@@ -61,8 +68,8 @@ const EmployeeAddedVendors  = () => {
       filterStatus === "all"
         ? true
         : filterStatus === "active"
-        ? person.Inactive?.toLowerCase() === "no"
-        : person.Inactive?.toLowerCase() === "yes";
+          ? person.Inactive?.toLowerCase() === "no"
+          : person.Inactive?.toLowerCase() === "yes";
 
     return matchesSearch && matchesFilter;
   });
@@ -125,7 +132,7 @@ const EmployeeAddedVendors  = () => {
         return;
       }
 
-      const response = await addNewVendorsExcel(newVendors,empId);
+      const response = await addNewVendorsExcel(newVendors, empId);
 
       if (response.status === 201) {
         toast.success("Vendors uploaded successfully");
@@ -196,11 +203,10 @@ const EmployeeAddedVendors  = () => {
                 onClick={uploadVendorData}
                 disabled={newVendors.length === 0}
                 className={`w-full sm:w-auto px-4 py-2 text-sm font-medium text-white rounded-lg order-1 sm:order-2
-            ${
-              newVendors.length > 0
-                ? "bg-primary hover:bg-primary/90"
-                : "bg-gray-400 cursor-not-allowed"
-            }`}
+            ${newVendors.length > 0
+                    ? "bg-primary hover:bg-primary/90"
+                    : "bg-gray-400 cursor-not-allowed"
+                  }`}
               >
                 Upload File
               </button>
@@ -220,28 +226,50 @@ const EmployeeAddedVendors  = () => {
 
         {/* Controls for smaller screens */}
         <div className="md:hidden space-y-3">
-          <button
-            className="w-full inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90"
-            onClick={() => navigate("/vendor-list-table/vendor-registration")}
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Add Vendor
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="flex-1 inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90"
+              onClick={() => navigate("/vendor-list-table/vendor-registration")}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add Vendor
+            </button>
+            {vendorPolicy && (
+              <a
+                href={vendorPolicy.policyFile}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center px-4 py-2.5 border border-blue-300 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Policy
+              </a>
+            )}
+          </div>
 
-          <div className="relative w-full">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
+          <div className="flex gap-2 w-full">
+            <div className="relative flex-grow">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search vendors..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+              />
             </div>
-            <input
-              type="text"
-              placeholder="Search vendors..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
-            />
+            <button
+              className="inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 whitespace-nowrap"
+              onClick={() => navigate("/vendor-list-table/my-vendor-registration")}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add
+            </button>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
@@ -269,8 +297,8 @@ const EmployeeAddedVendors  = () => {
 
         {/* Controls for medium and larger screens */}
         <div className="hidden md:block">
-          <div className="flex flex-wrap md:flex-nowrap gap-3 mb-4">
-            <div className="relative flex-grow">
+          <div className="flex flex-wrap md:flex-nowrap gap-3 mb-4 justify-between">
+            <div className="relative w-full md:w-96 lg:w-80">
               <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                 <Search className="h-5 w-5 text-gray-400" />
               </div>
@@ -286,32 +314,45 @@ const EmployeeAddedVendors  = () => {
               />
             </div>
 
-            <select
-              value={filterStatus}
-              onChange={(e) => {
-                setFilterStatus(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-            <button
-              onClick={() => setShowImportModal(true)}
-              className="inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Import
-            </button>
-            <button
-              className="inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90"
-              onClick={() => navigate("/vendor-list-table/vendor-registration")}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Vendor
-            </button>
+            <div className="flex flex-wrap gap-3 flex-shrink-0">
+              <select
+                value={filterStatus}
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <option value="all">All Status</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Import
+              </button>
+              {vendorPolicy && (
+                <a
+                  href={vendorPolicy.policyFile}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center px-4 py-2.5 border border-blue-300 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  View Policy
+                </a>
+              )}
+              <button
+                className="inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90"
+                onClick={() => navigate("/vendor-list-table/my-vendor-registration")}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Vendor
+              </button>
+            </div>
           </div>
         </div>
       </div>

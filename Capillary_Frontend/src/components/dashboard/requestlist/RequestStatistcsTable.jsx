@@ -12,6 +12,7 @@ import {
     Check,
     ChevronDown,
     ChevronUp,
+    FileText,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -1020,6 +1021,16 @@ const RequestStatistcsTable = () => {
                             >
                                 <Plus className="h-4 w-4 mr-2" />
                                 Add Request
+                            </button>
+                            <button
+                                className="inline-flex items-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                                onClick={() => {
+                                    // Add your PO policy navigation/logic here
+                                    alert("PO policy feature coming soon!");
+                                }}
+                            >
+                                <FileText className="h-4 w-4 mr-2" />
+                                View PO Policy
                             </button>
                         </div>
                     </div>

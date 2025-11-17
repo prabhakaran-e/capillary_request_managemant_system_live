@@ -6,11 +6,11 @@ const SessionTimeout = () => {
   const navigate = useNavigate();
 
   // ----------------- Config -----------------
-  const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+  const INACTIVITY_TIMEOUT = 60 * 60 * 1000; // 60 minutes
   const INACTIVITY_WARNING = 1 * 60 * 1000; // 1 minute warning
 
   const DAILY_LOGOUT_HOUR = 0; // midnight
-  const DAILY_LOGOUT_MINUTE = 0; 
+  const DAILY_LOGOUT_MINUTE = 0;
   const DAILY_WARNING_TIME = 5 * 60 * 1000; // 5 minutes warning for daily logout
 
   // ----------------- Helper Functions -----------------

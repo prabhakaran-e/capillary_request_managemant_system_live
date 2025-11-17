@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FileText } from "lucide-react";
 import {
   Edit,
   Trash2,
@@ -6,7 +7,6 @@ import {
   Download,
   Plus,
   Filter,
-  FileText,
   X,
   Copy,
   ExternalLink,
@@ -19,6 +19,7 @@ import {
   deleteReq,
   getAllCurrencyData,
   getApprovedReq,
+  getPoPolicyLink,
 } from "../../../api/service/adminServices";
 import Pagination from "../requestlist/Pagination";
 import LoadingSpinner from "../../spinner/LoadingSpinner";
@@ -39,6 +40,7 @@ const Approvals = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [poPolicy, setPoPolicy] = useState(null);
   const [isDelete, setIsDelete] = useState(false);
   const [reqId, setReqId] = useState(null);
   const [isShowModal, setIsShowModal] = useState(false);
@@ -94,6 +96,16 @@ const Approvals = () => {
       const response = await getAllCurrencyData();
       if (response.status === 200) {
         setCurrencies(response.data.data);
+      }
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const response = await getPoPolicyLink();
+      if (response.status === 200) {
+        setPoPolicy(response.data.data);
       }
     };
     fetchData();
@@ -496,21 +508,19 @@ const Approvals = () => {
             <div className="flex items-center gap-4">
               <div className="flex rounded-md overflow-hidden">
                 <button
-                  className={`px-4 py-2.5 text-sm font-medium ${
-                    viewMode === "pending"
-                      ? "bg-primary text-white"
-                      : "bg-white text-gray-700 border border-gray-300"
-                  }`}
+                  className={`px-4 py-2.5 text-sm font-medium ${viewMode === "pending"
+                    ? "bg-primary text-white"
+                    : "bg-white text-gray-700 border border-gray-300"
+                    }`}
                   onClick={() => handleViewModeChange("pending")}
                 >
                   Pending
                 </button>
                 <button
-                  className={`px-4 py-2.5 text-sm font-medium ${
-                    viewMode === "all"
-                      ? "bg-primary text-white"
-                      : "bg-white text-gray-700 border border-gray-300"
-                  }`}
+                  className={`px-4 py-2.5 text-sm font-medium ${viewMode === "all"
+                    ? "bg-primary text-white"
+                    : "bg-white text-gray-700 border border-gray-300"
+                    }`}
                   onClick={() => handleViewModeChange("all")}
                 >
                   All
@@ -529,6 +539,17 @@ const Approvals = () => {
                   <ChevronDown className="h-4 w-4 ml-1" />
                 )}
               </button>
+              {poPolicy && (
+                <a
+                  href={poPolicy}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-4 py-2.5 border border-blue-300 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  View PO Policy
+                </a>
+              )}
               <button
                 className="inline-flex items-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                 onClick={() => exportAllRequestsToExcel(users)}
@@ -678,7 +699,7 @@ const Approvals = () => {
           searchTerm={searchTerm}
           dateFilters={dateFilters}
           viewMode={viewMode}
-          startIndex ={startIndex }
+          startIndex={startIndex}
         />
 
         {filteredUsers.length > 0 && (

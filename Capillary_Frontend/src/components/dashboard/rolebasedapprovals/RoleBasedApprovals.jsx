@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FileText } from "lucide-react";
 import {
   Edit,
   Trash2,
@@ -19,6 +20,7 @@ import {
   getAllCurrencyData,
   getApprovedReq,
   getRoleBasedApprovals,
+  getPoPolicyLink,
   // getAllRoleBasedApprovals,
 } from "../../../api/service/adminServices";
 import Pagination from "../requestlist/Pagination";
@@ -39,6 +41,7 @@ const RoleBasedApprovals = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [poPolicy, setPoPolicy] = useState(null);
   const [isDelete, setIsDelete] = useState(false);
   const [reqId, setReqId] = useState(null);
   const [showAllData, setShowAllData] = useState(false);
@@ -92,6 +95,16 @@ const RoleBasedApprovals = () => {
       const response = await getAllCurrencyData();
       if (response.status === 200) {
         setCurrencies(response.data.data);
+      }
+    };
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const response = await getPoPolicyLink();
+      if (response.status === 200) {
+        setPoPolicy(response.data.data);
       }
     };
     fetchData();
@@ -451,21 +464,19 @@ const RoleBasedApprovals = () => {
 
             <div className="flex items-center gap-4">
               <button
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  !showAllData
-                    ? "bg-primary text-white"
-                    : "bg-gray-100 text-gray-700"
-                }`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${!showAllData
+                  ? "bg-primary text-white"
+                  : "bg-gray-100 text-gray-700"
+                  }`}
                 onClick={() => handleViewModeChange(false)}
               >
                 Pending
               </button>
               <button
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  showAllData
-                    ? "bg-primary text-white"
-                    : "bg-gray-100 text-gray-700"
-                }`}
+                className={`px-4 py-2 rounded-lg text-sm font-medium ${showAllData
+                  ? "bg-primary text-white"
+                  : "bg-gray-100 text-gray-700"
+                  }`}
                 onClick={() => handleViewModeChange(true)}
               >
                 All
@@ -482,6 +493,17 @@ const RoleBasedApprovals = () => {
                   <ChevronDown className="h-4 w-4 ml-1" />
                 )}
               </button>
+              {poPolicy && (
+                <a
+                  href={poPolicy}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-4 py-2.5 border border-blue-300 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  View PO Policy
+                </a>
+              )}
               <button className="inline-flex items-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
                 <Download className="h-4 w-4 mr-2" />
                 Export
@@ -625,7 +647,7 @@ const RoleBasedApprovals = () => {
           renderActionColumn={renderActionColumn}
           searchTerm={searchTerm}
           dateFilters={dateFilters}
-          startIndex ={startIndex }
+          startIndex={startIndex}
         />
 
         {filteredUsers?.length > 0 && (

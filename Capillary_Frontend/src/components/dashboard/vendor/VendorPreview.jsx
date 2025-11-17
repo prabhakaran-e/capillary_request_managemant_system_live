@@ -11,6 +11,8 @@ import {
   Download,
   ExternalLink,
   CheckCircle,
+  Clock,
+  Eye,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -178,6 +180,8 @@ const VendorPreview = () => {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showLegalLogs, setShowLegalLogs] = useState(false);
+  const [showVendorLogs, setShowVendorLogs] = useState(false);
 
   const excludeKeys = [
     "_id",
@@ -205,6 +209,8 @@ const VendorPreview = () => {
     "bankProofFileUrl",
     "__v",
     "empId",
+    "isLegalTeamVerifiedLogs",
+    "isVendorTeamVerifiedLogs",
   ];
 
   // Define structured sections with proper field mapping
@@ -276,6 +282,17 @@ const VendorPreview = () => {
   const formatValue = (value) => {
     if (value === "" || value === null || value === undefined) return "N/A";
     if (typeof value === "boolean") return value ? "Yes" : "No";
+    if (typeof value === "object" && !Array.isArray(value)) {
+      // Handle verification log objects
+      if (value.status !== undefined && value.verifiedBy !== undefined && value.verifiedAt !== undefined) {
+        return `${value.status ? "Verified" : "Not Verified"} by ${value.verifiedBy || "Unknown"} on ${new Date(value.verifiedAt).toLocaleDateString()}`;
+      }
+      // Handle verification status objects with comments
+      if (value.status !== undefined && value.comments !== undefined) {
+        return `${value.status ? "Verified" : "Not Verified"}${value.comments && value.comments.length > 0 ? ` (${value.comments.length} comment${value.comments.length > 1 ? 's' : ''})` : ""}`;
+      }
+      return "N/A";
+    }
     if (typeof value === "number") {
       if (value === 0) return "0";
       if (Number.isInteger(value)) return value.toLocaleString();
@@ -284,7 +301,6 @@ const VendorPreview = () => {
         maximumFractionDigits: 2,
       });
     }
-    // Format date strings
     if (
       typeof value === "string" &&
       value.includes("T") &&
@@ -538,6 +554,100 @@ const VendorPreview = () => {
                     value={formatValue(data[field.key])}
                   />
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Verification Logs Section */}
+          {(data.isLegalTeamVerifiedLogs?.length > 0 || data.isVendorTeamVerifiedLogs?.length > 0) && (
+            <div className="bg-white rounded-lg shadow-sm p-6">
+              <SectionHeader icon={Clock} title="Verification Logs" />
+              <div className="space-y-4">
+                {data.isLegalTeamVerifiedLogs?.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900">Legal Team Verification</h3>
+                      <button
+                        onClick={() => setShowLegalLogs(!showLegalLogs)}
+                        className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors text-sm"
+                      >
+                        <Eye className="h-4 w-4" />
+                        {showLegalLogs ? 'Hide Logs' : 'Show Logs'}
+                      </button>
+                    </div>
+                    {showLegalLogs && (
+                      <div className="space-y-2">
+                        {data.isLegalTeamVerifiedLogs.map((log, index) => (
+                          <div key={log._id || index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${log.status ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                <span className="text-sm font-medium text-gray-900">
+                                  {log.status ? 'Verified' : 'Not Verified'}
+                                </span>
+                              </div>
+                              <span className="text-xs text-gray-500">
+                                {new Date(log.verifiedAt).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="mt-1 text-sm text-gray-600">
+                              By: {log.verifiedBy || log.verifiedUserId || 'Unknown'}
+                            </div>
+                            {log.comments && log.comments.length > 0 && (
+                              <div className="mt-2 text-sm text-gray-600">
+                                <span className="font-medium">Comments: </span>
+                                {log.comments.join(', ')}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {data.isVendorTeamVerifiedLogs?.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900">Vendor Team Verification</h3>
+                      <button
+                        onClick={() => setShowVendorLogs(!showVendorLogs)}
+                        className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors text-sm"
+                      >
+                        <Eye className="h-4 w-4" />
+                        {showVendorLogs ? 'Hide Logs' : 'Show Logs'}
+                      </button>
+                    </div>
+                    {showVendorLogs && (
+                      <div className="space-y-2">
+                        {data.isVendorTeamVerifiedLogs.map((log, index) => (
+                          <div key={log._id || index} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${log.status ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                                <span className="text-sm font-medium text-gray-900">
+                                  {log.status ? 'Verified' : 'Not Verified'}
+                                </span>
+                              </div>
+                              <span className="text-xs text-gray-500">
+                                {new Date(log.verifiedAt).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="mt-1 text-sm text-gray-600">
+                              By: {`${log.verifiedUserId} - ${log.verifiedBy} ` || 'Unknown'}
+                            </div>
+                            {log.reason && log.reason.length > 0 && (
+                              <div className="mt-2 text-sm text-gray-600">
+                                <span className="font-medium">Comments: </span>
+                                {log.reason.join(', ')}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           )}

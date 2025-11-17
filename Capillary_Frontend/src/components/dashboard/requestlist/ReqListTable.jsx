@@ -23,6 +23,7 @@ import {
     getReqListEmployee,
     sendReqEditMail,
     getFilteredRequests,
+    getPoPolicyLink,
 } from "../../../api/service/adminServices";
 import Pagination from "./Pagination";
 import * as XLSX from "xlsx";
@@ -40,6 +41,7 @@ const ReqListTable = () => {
 
     const [users, setUsers] = useState([]);
     const [filteredUsers, setFilteredUsers] = useState([]);
+    const [poPolicy, setPoPolicy] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [isShowModal, setIsShowModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
@@ -102,8 +104,8 @@ const ReqListTable = () => {
             reqid: item.reqid,
             nextDepartment: item.nextDepartment
         }));
-        
-        console.log(`Sample nextDepartment values for ${status}:`, 
+
+        console.log(`Sample nextDepartment values for ${status}:`,
             allNextDepartments.slice(0, 10)
         );
 
@@ -116,30 +118,28 @@ const ReqListTable = () => {
 
         console.log(`Final unique departments for "${status}":`, departments);
         console.log(`Department count: ${departments.length}`);
-        
+
         return departments;
     };
 
     // Enhanced useEffect for department updates with logging
     useEffect(() => {
-        console.log(`\n=== DEPARTMENT UPDATE EFFECT ===`);
-        console.log("Current statusFilter:", statusFilter);
-        console.log("Users data length:", users.length);
-        
+
+
         if (statusFilter && statusesWithDepartments.includes(statusFilter)) {
-            console.log(`Status "${statusFilter}" supports department filtering`);
-            
+
+
             const departments = getAvailableDepartmentsForStatus(statusFilter, users);
-            console.log("Setting available departments:", departments);
+
             setAvailableDepartments(departments);
 
             // If current department filter is not available in new list, clear it
             if (departmentFilter && !departments.includes(departmentFilter)) {
-                console.log(`Clearing department filter "${departmentFilter}" as it's not available for status "${statusFilter}"`);
+
                 setDepartmentFilter("");
             }
         } else {
-            console.log("Clearing available departments");
+
             setAvailableDepartments([]);
         }
     }, [statusFilter, users, departmentFilter]);
@@ -161,7 +161,7 @@ const ReqListTable = () => {
             try {
                 let response;
                 console.log("Fetching initial data for role:", role);
-                
+
                 if (role === "Admin") {
                     response = await getAdminReqListEmployee();
                 } else {
@@ -169,9 +169,10 @@ const ReqListTable = () => {
                 }
 
                 if (response && response.data) {
-                    console.log("Initial data loaded:", response.data.data.length, "records");
                     setUsers(response.data.data);
                     setFilteredUsers(response.data.data);
+
+                    
                 }
             } catch (error) {
                 console.error("Error fetching initial data:", error);
@@ -183,6 +184,18 @@ const ReqListTable = () => {
         };
         fetchInitialData();
     }, [userId, role]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            const response = await getPoPolicyLink();
+            if (response.status === 200) {
+                setPoPolicy(response.data.data);
+            }
+
+        }
+        fetchData()
+
+    }, [])
 
     // Enhanced apply filters function with comprehensive logging for admin
     const applyFilters = async () => {
@@ -213,7 +226,7 @@ const ReqListTable = () => {
                 // For admin, always get all data first, then apply client-side filtering
                 // This ensures we have complete data to work with
                 console.log("Getting all admin data first...");
-                
+
                 if (role === "Admin") {
                     response = await getAdminReqListEmployee();
                 } else {
@@ -225,7 +238,12 @@ const ReqListTable = () => {
 
                     console.log("=== DATA ANALYSIS ===");
                     console.log("Total records received:", filteredData.length);
-                    
+
+                    // Set PO policy if available in response
+                    if (response.data.poPolicyFileLink) {
+                        setPoPolicy(response.data.poPolicyFileLink);
+                    }
+
                     // Analyze the data structure
                     if (filteredData.length > 0) {
                         console.log("Sample record structure:", {
@@ -249,24 +267,24 @@ const ReqListTable = () => {
                     if (statusFilter) {
                         const beforeCount = filteredData.length;
                         console.log(`\n=== APPLYING STATUS FILTER: ${statusFilter} ===`);
-                        
+
                         filteredData = filteredData.filter((request) => {
                             const matches = request.status === statusFilter;
                             return matches;
                         });
-                        
+
                         console.log(`Status filter result: ${beforeCount} -> ${filteredData.length} records`);
-                        
+
                         if (filteredData.length > 0) {
                             // Show sample of filtered records
-                            console.log("Sample records after status filter:", 
+                            console.log("Sample records after status filter:",
                                 filteredData.slice(0, 3).map(req => ({
                                     reqid: req.reqid,
                                     status: req.status,
                                     nextDepartment: req.nextDepartment
                                 }))
                             );
-                            
+
                             // Show unique departments for this status
                             const statusDepartments = [...new Set(filteredData.map(req => req.nextDepartment))].filter(dept => dept);
                             console.log(`Available departments for ${statusFilter}:`, statusDepartments);
@@ -279,26 +297,26 @@ const ReqListTable = () => {
                     if (departmentFilter) {
                         const beforeCount = filteredData.length;
                         console.log(`\n=== APPLYING DEPARTMENT FILTER: ${departmentFilter} ===`);
-                        
+
                         // Show what departments are available before filtering
                         const availableDepts = [...new Set(filteredData.map(req => req.nextDepartment))].filter(dept => dept);
                         console.log("Available departments before dept filter:", availableDepts);
-                        
+
                         filteredData = filteredData.filter((request) => {
                             const requestDept = request.nextDepartment;
                             const matches = requestDept === departmentFilter;
-                            
+
                             if (!matches && requestDept) {
                                 console.log(`Excluding: reqid=${request.reqid}, nextDept="${requestDept}" (looking for "${departmentFilter}")`);
                             } else if (matches) {
                                 console.log(`Including: reqid=${request.reqid}, nextDept="${requestDept}"`);
                             }
-                            
+
                             return matches;
                         });
-                        
+
                         console.log(`Department filter result: ${beforeCount} -> ${filteredData.length} records`);
-                        
+
                         if (filteredData.length === 0 && departmentFilter) {
                             console.log("⚠️ No records found for department:", departmentFilter);
                             console.log("This might indicate:");
@@ -312,35 +330,35 @@ const ReqListTable = () => {
                     if (dateFilters.fromDate) {
                         const beforeCount = filteredData.length;
                         console.log(`\n=== APPLYING FROM DATE FILTER: ${dateFilters.fromDate} ===`);
-                        
+
                         filteredData = filteredData.filter((request) => {
                             const requestDate = new Date(request.createdAt);
                             const fromDate = new Date(dateFilters.fromDate);
                             return requestDate >= fromDate;
                         });
-                        
+
                         console.log(`From date filter result: ${beforeCount} -> ${filteredData.length} records`);
                     }
-                    
+
                     if (dateFilters.toDate) {
                         const beforeCount = filteredData.length;
                         console.log(`\n=== APPLYING TO DATE FILTER: ${dateFilters.toDate} ===`);
-                        
+
                         filteredData = filteredData.filter((request) => {
                             const requestDate = new Date(request.createdAt);
                             const toDate = new Date(dateFilters.toDate);
                             toDate.setHours(23, 59, 59, 999);
                             return requestDate <= toDate;
                         });
-                        
+
                         console.log(`To date filter result: ${beforeCount} -> ${filteredData.length} records`);
                     }
 
                     console.log("\n=== FINAL RESULTS ===");
                     console.log("Final filtered data count:", filteredData.length);
-                    
+
                     if (filteredData.length > 0) {
-                        console.log("Final sample records:", 
+                        console.log("Final sample records:",
                             filteredData.slice(0, 5).map(req => ({
                                 reqid: req.reqid,
                                 status: req.status,
@@ -374,6 +392,11 @@ const ReqListTable = () => {
             if (response && response.data) {
                 setUsers(response.data.data);
                 setFilteredUsers(response.data.data);
+
+                // Set PO policy if available in response
+                if (response.data.poPolicyFileLink) {
+                    setPoPolicy(response.data.poPolicyFileLink);
+                }
 
                 // Update applied filters state
                 setAppliedFilters({
@@ -497,6 +520,10 @@ const ReqListTable = () => {
                 if (response && response.data) {
                     setUsers(response.data.data);
                     setFilteredUsers(response.data.data);
+                    // Set PO policy if available in response
+                    if (response.data.poPolicyFileLink) {
+                        setPoPolicy(response.data.poPolicyFileLink);
+                    }
                 }
             } catch (error) {
                 console.error("Error fetching all data:", error);
@@ -699,9 +726,8 @@ const ReqListTable = () => {
             appliedFilters.dateFilters.toDate
         ) {
             if (text) text += " | ";
-            text += `Date: ${appliedFilters.dateFilters.fromDate || "Any"} to ${
-                appliedFilters.dateFilters.toDate || "Any"
-            }`;
+            text += `Date: ${appliedFilters.dateFilters.fromDate || "Any"} to ${appliedFilters.dateFilters.toDate || "Any"
+                }`;
         }
         return text;
     };
@@ -750,15 +776,15 @@ const ReqListTable = () => {
                                     )}
                                     {(appliedFilters.dateFilters.fromDate ||
                                         appliedFilters.dateFilters.toDate) && (
-                                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
-                                            Date:{" "}
-                                            {appliedFilters.dateFilters
-                                                .fromDate || "Any"}{" "}
-                                            to{" "}
-                                            {appliedFilters.dateFilters
-                                                .toDate || "Any"}
-                                        </span>
-                                    )}
+                                            <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs">
+                                                Date:{" "}
+                                                {appliedFilters.dateFilters
+                                                    .fromDate || "Any"}{" "}
+                                                to{" "}
+                                                {appliedFilters.dateFilters
+                                                    .toDate || "Any"}
+                                            </span>
+                                        )}
                                 </div>
                                 <button
                                     onClick={clearFilters}
@@ -796,6 +822,17 @@ const ReqListTable = () => {
                                 <Download className="h-3 w-3 mr-1" />
                                 Export
                             </button>
+                            {poPolicy && (
+                                <a
+                                    href={poPolicy}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-1 flex justify-center items-center px-2 py-2 border border-blue-300 rounded-lg text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
+                                >
+                                    <FileText className="h-3 w-3 mr-1" />
+                                    PO Policy
+                                </a>
+                            )}
                         </div>
                     </div>
 
@@ -833,6 +870,17 @@ const ReqListTable = () => {
                                 <Download className="h-4 w-4 mr-2" />
                                 Export
                             </button>
+                            {poPolicy && (
+                                <a
+                                    href={poPolicy}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center px-4 py-2.5 border border-blue-300 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
+                                >
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    View PO Policy
+                                </a>
+                            )}
                             <button
                                 className="inline-flex items-center px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90"
                                 onClick={() =>

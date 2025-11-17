@@ -425,12 +425,18 @@ const sendIndividualEmail = async (
       </div>
       
       <p>Please review this request at your earliest convenience. Your prompt attention to this matter is greatly appreciated.</p>
-      <div class="action-buttons">
-  <a href="https://porequests.corp.capillarytech.com/preview?reqId=${reqId}" 
-     class="action-button approve-button" target="_blank">
-     Preview Request
-  </a>
-</div>
+      <p style="margin: 20px 0;">
+            <a href="https://porequests.corp.capillarytech.com/req-list-table/hod-approve-request/{{hodEmail}}/{{reqpreviewId}}" 
+               style="background-color: #007bff; color: #ffffff; padding: 12px 18px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              Review & Approve Request
+            </a>
+          </p>
+//       <div class="action-buttons">
+//   <a href="https://porequests.corp.capillarytech.com/preview?reqId=${reqId}" 
+//      class="action-button approve-button" target="_blank">
+//      Preview Request
+//   </a>
+// </div>
      
     </div>
  

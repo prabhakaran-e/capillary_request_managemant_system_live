@@ -59,6 +59,8 @@ import PrepaidTable from "./components/dashboard/prepaid/PrepaidTable";
 import HodApproveRequest from "./components/dashboard/requestlist/HodApproveRequest";
 import UploadVendorPolicy from "./components/dashboard/settings/vendorpolicy/UploadVendorPolicy";
 import UploadPOPolicy from "./components/dashboard/settings/uploadPoPolicy/UploadPoPolicy";
+import MyVendorRegistration from "./components/dashboard/vendor/MyVendorRegistration";
+import VendorDeviationCountData from "./components/dashboard/vendor/VendorDeviationCountData";
 
 
 function App() {
@@ -111,9 +113,11 @@ function App() {
 
           <Route path="/vendor-list-table" element={<VendorListTable />} />
           <Route path="/vendor-list-table/vendor-registration" element={<VendorRegistration />} />
+          <Route path="/vendor-list-table/my-vendor-registration" element={<MyVendorRegistration />} />
           <Route path="/vendor-list-table/edit-vendor/:id" element={<EditVendor />} />
           <Route path="/vendor-list-table/get-vendor/:vendorId" element={<VendorPreview />} />
           <Route path="/vendor/my-added-vendors" element={<EmployeeAddedVendors />} />
+            <Route path="/vendor/pending-vendor-list-table" element={<VendorDeviationCountData />} />
 
           <Route path="/employee-list-table" element={<EmployeListTable />} />
           <Route path="/employee-list-table/employee-reg" element={<EmployeeReg />} />

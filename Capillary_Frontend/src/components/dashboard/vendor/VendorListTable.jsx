@@ -10,8 +10,9 @@ import {
   ChevronDown,
   ChevronUp,
   FileSpreadsheet,
+  FileText,
 } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast, ToastContainer } from "react-toastify";
 import * as XLSX from "xlsx";
@@ -20,12 +21,17 @@ import {
   addNewVendorsExcel,
   deleteVendor,
   getVendorList,
-  fetchAllVendorData
+  fetchAllVendorData,
+  getVendorManagementCount,
+  teamVerifiedTheVendorData,
+  teamRejectTheVendorData
 } from "../../../api/service/adminServices";
 
 const VendorListTable = () => {
+  const empId = localStorage.getItem("capEmpId");
   const navigate = useNavigate();
   const [personalData, setPersonalData] = useState([]);
+  const [vendorPolicy, setVendorPolicy] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -33,15 +39,24 @@ const VendorListTable = () => {
   const [newVendors, setNewVendors] = useState([]);
   const [expandedRow, setExpandedRow] = useState(null);
   const fileInputRef = useRef(null);
+  const textareaRef = useRef(null);
   const itemsPerPage = 10;
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("pending"); // "pending" or "all"
+  const [confirmAction, setConfirmAction] = useState(null); // { type: 'approve' | 'reject', vendorId: string, vendorName: string }
+  const [rejectReason, setRejectReason] = useState("");
 
   useEffect(() => {
     const fetchVendor = async () => {
       setIsLoading(true);
       try {
         const response = await fetchAllVendorData();
-        setPersonalData(response.data);
+        console.log("response", response);
+        setPersonalData(response.data.vendors || []);
+        // Set vendor policy if available in response
+        if (response.data.vendorPolicyFiles && response.data.vendorPolicyFiles.length > 0) {
+          setVendorPolicy(response.data.vendorPolicyFiles[0]);
+        }
       } catch (err) {
         toast.error("Error fetching vendor data");
         console.error("Error in fetching the vendor data", err);
@@ -61,10 +76,17 @@ const VendorListTable = () => {
       filterStatus === "all"
         ? true
         : filterStatus === "active"
-        ? person.Inactive?.toLowerCase() === "no"
-        : person.Inactive?.toLowerCase() === "yes";
+          ? person.Inactive?.toLowerCase() === "no"
+          : person.Inactive?.toLowerCase() === "yes";
 
-    return matchesSearch && matchesFilter;
+    // Filter based on active tab
+    const matchesTab = activeTab === "all"
+      ? true
+      : activeTab === "pending"
+        ? person.isLegalTeamVerified === true && person.isVendorTeamVerified === false
+        : true;
+
+    return matchesSearch && matchesFilter && matchesTab;
   });
 
   const totalPages = Math.ceil((filteredData?.length || 0) / itemsPerPage);
@@ -89,6 +111,89 @@ const VendorListTable = () => {
       toast.error("Error deleting vendor");
     }
   };
+
+  const handleApprove = async (id) => {
+    const vendor = personalData?.find(p => p._id === id);
+    setConfirmAction({ type: 'approve', vendorId: id, vendorName: vendor?.vendorName || vendor?.Name });
+  };
+
+  const handleReject = async (id) => {
+    const vendor = personalData?.find(p => p._id === id);
+    setConfirmAction({ type: 'reject', vendorId: id, vendorName: vendor?.vendorName || vendor?.Name });
+  };
+
+  const confirmApprove = async () => {
+    try {
+      // API call to approve vendor
+      const response = await teamVerifiedTheVendorData(confirmAction.vendorId, empId);
+
+
+
+      if (response.status === 200) {
+        // Update local state to reflect approval
+        setPersonalData(personalData?.map(person =>
+          person._id === confirmAction.vendorId
+            ? { ...person, isVendorTeamVerified: true }
+            : person
+        ));
+        toast.success(response.data.message);
+      } else {
+        toast.error("Failed to approve vendor");
+      }
+    } catch (error) {
+      toast.error("Error approving vendor");
+    } finally {
+      setConfirmAction(null);
+    }
+  };
+
+  const confirmReject = async () => {
+    if (!rejectReason.trim()) {
+      toast.error("Please provide a reason for rejection");
+      return;
+    }
+
+    try {
+      // API call to reject vendor with reason
+      const response = await teamRejectTheVendorData(confirmAction.vendorId, empId, rejectReason);
+
+
+
+      if (response.status === 200) {
+        // Update local state to reflect rejection
+        setPersonalData(personalData?.map(person =>
+          person._id === confirmAction.vendorId
+            ? { ...person, isVendorTeamVerified: false, isLegalTeamVerified: false }
+            : person
+        ));
+        toast.success("Vendor rejected successfully");
+      } else {
+        toast.error("Failed to reject vendor");
+      }
+    } catch (error) {
+      toast.error("Error rejecting vendor");
+    } finally {
+      setConfirmAction(null);
+      setRejectReason("");
+    }
+  };
+
+  const cancelAction = () => {
+    setConfirmAction(null);
+    setRejectReason("");
+  };
+
+  const handleRejectReasonChange = useCallback((e) => {
+    setRejectReason(e.target.value);
+  }, []);
+
+  useEffect(() => {
+    if (confirmAction && confirmAction.type === 'reject' && textareaRef.current) {
+      setTimeout(() => {
+        textareaRef.current.focus();
+      }, 100);
+    }
+  }, [confirmAction]);
 
   const downloadSampleTemplate = () => {
     // Define the required columns for the Excel template
@@ -197,7 +302,7 @@ const VendorListTable = () => {
 
     // Generate and download the file
     XLSX.writeFile(wb, "Vendor_Upload_Template.xlsx");
-    
+
     toast.success("Sample template downloaded successfully!");
   };
 
@@ -242,7 +347,7 @@ const VendorListTable = () => {
         toast.success("Vendors uploaded successfully");
 
         const updatedVendorList = await getVendorList();
-        setPersonalData(updatedVendorList.data);
+        setPersonalData(updatedVendorList.data.data || []);
 
         setNewVendors([]);
         setShowImportModal(false);
@@ -349,7 +454,7 @@ const VendorListTable = () => {
               </div>
               <div className="mt-3 pt-3 border-t border-blue-300">
                 <p className="text-xs text-blue-700">
-                  <strong>Note:</strong> Agreement files must be uploaded separately after vendor creation. 
+                  <strong>Note:</strong> Agreement files must be uploaded separately after vendor creation.
                   If "Has Agreement" is "no", fill the "Questionnaire Answer" column.
                 </p>
               </div>
@@ -408,11 +513,10 @@ const VendorListTable = () => {
                 onClick={uploadVendorData}
                 disabled={newVendors.length === 0}
                 className={`w-full sm:w-auto px-4 py-2 text-sm font-medium text-white rounded-lg order-1 sm:order-2 transition-colors
-            ${
-              newVendors.length > 0
-                ? "bg-primary hover:bg-primary/90"
-                : "bg-gray-400 cursor-not-allowed"
-            }`}
+            ${newVendors.length > 0
+                    ? "bg-primary hover:bg-primary/90"
+                    : "bg-gray-400 cursor-not-allowed"
+                  }`}
               >
                 Upload File
               </button>
@@ -429,6 +533,28 @@ const VendorListTable = () => {
         <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4 md:mb-6">
           Vendor Information
         </h2>
+
+        {/* Tabs */}
+        <div className="flex space-x-1 mb-6 border-b border-gray-200">
+          <button
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === "pending"
+              ? "bg-primary text-white border-b-2 border-primary"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
+            onClick={() => setActiveTab("pending")}
+          >
+            Pending Approvals
+          </button>
+          <button
+            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors ${activeTab === "all"
+              ? "bg-primary text-white border-b-2 border-primary"
+              : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+              }`}
+            onClick={() => setActiveTab("all")}
+          >
+            All Vendors
+          </button>
+        </div>
 
         {/* Controls for smaller screens */}
         <div className="md:hidden space-y-3">
@@ -482,7 +608,7 @@ const VendorListTable = () => {
         {/* Controls for medium and larger screens */}
         <div className="hidden md:block">
           <div className="flex flex-wrap md:flex-nowrap gap-3 mb-4">
-           
+
             <div className="relative flex-grow">
               <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                 <Search className="h-5 w-5 text-gray-400" />
@@ -498,7 +624,7 @@ const VendorListTable = () => {
                 className="w-full pl-11 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
               />
             </div>
-            
+
 
             <select
               value={filterStatus}
@@ -526,7 +652,17 @@ const VendorListTable = () => {
               <Plus className="h-4 w-4 mr-2" />
               Add Vendor
             </button>
-
+            {vendorPolicy && (
+              <a
+                href={vendorPolicy.policyFile}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center px-4 py-2.5 border border-blue-300 rounded-lg text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                View Vendor Policy
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -580,6 +716,30 @@ const VendorListTable = () => {
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
+                    {activeTab === "pending" && (
+                      <>
+                        <button
+                          className="px-3 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleApprove(person?._id);
+                          }}
+                          title="Approve Vendor"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          className="px-3 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReject(person?._id);
+                          }}
+                          title="Reject Vendor"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
                     <button
                       className="text-gray-500 hover:text-gray-700"
                       onClick={(e) => toggleRow(person._id, e)}
@@ -683,7 +843,7 @@ const VendorListTable = () => {
                         {person?.shippingAddress || person["Shipping Address"]}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex space-x-4">
+                        <div className="flex space-x-2">
                           <button
                             className="text-primary hover:text-primary/80"
                             onClick={(e) => {
@@ -704,6 +864,30 @@ const VendorListTable = () => {
                           >
                             <Trash2 className="h-5 w-5" />
                           </button>
+                          {activeTab === "pending" && (
+                            <>
+                              <button
+                                className="px-3 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleApprove(person?._id);
+                                }}
+                                title="Approve Vendor"
+                              >
+                                Approve
+                              </button>
+                              <button
+                                className="px-3 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReject(person?._id);
+                                }}
+                                title="Reject Vendor"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -724,6 +908,58 @@ const VendorListTable = () => {
       />
 
       <ImportModal />
+
+      {/* Confirmation Modal for Approve/Reject */}
+      {confirmAction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {confirmAction.type === 'approve' ? 'Approve Vendor' : 'Reject Vendor'}
+            </h3>
+
+            <p className="text-gray-600 mb-6">
+              {confirmAction.type === 'approve'
+                ? `Are you sure you want to approve ${confirmAction.vendorName}?`
+                : `Are you sure you want to reject ${confirmAction.vendorName}?`
+              }
+            </p>
+
+            {confirmAction.type === 'reject' && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reason for Rejection <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  ref={textareaRef}
+                  value={rejectReason}
+                  onChange={handleRejectReasonChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary"
+                  rows={3}
+                  placeholder="Please provide a reason for rejection..."
+                />
+              </div>
+            )}
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelAction}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmAction.type === 'approve' ? confirmApprove : confirmReject}
+                className={`px-4 py-2 text-sm font-medium text-white rounded-lg ${confirmAction.type === 'approve'
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : 'bg-red-600 hover:bg-red-700'
+                  }`}
+              >
+                {confirmAction.type === 'approve' ? 'Approve' : 'Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ToastContainer
         position="top-right"

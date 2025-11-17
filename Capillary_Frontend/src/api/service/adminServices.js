@@ -87,6 +87,62 @@ export const getVendorList = async (empId) => {
   }
 };
 
+export const getLegalVendorsCount = async () => {
+  try {
+    const response = await adminServices.get(
+      `/vendors/legal-deviation-count-vendor`
+    );
+    return response;
+  } catch (err) {
+    return err;
+  }
+};
+
+export const getVendorManagementCount = async () => {
+  try {
+    const response = await adminServices.get(
+      `/vendors/vendor-management-approve-count`
+    );
+    return response;
+  } catch (err) {
+    return err;
+  }
+};
+
+export const fetchPendingVendorData = async () => {
+  try {
+    const response = await adminServices.get(
+      `/vendors/legal-deviation-pending-vendor`
+    );
+    return response;
+  } catch (err) {
+    return err;
+  }
+};
+
+export const approveVendor = async (vendorId, empId) => {
+  try {
+    const response = await adminServices.put(
+      `/vendors/approve-vendor/${vendorId}/${empId}`
+    );
+    return response;
+  } catch (err) {
+    return err;
+  }
+};
+
+export const rejectVendor = async (vendorId, empId, reason) => {
+  try {
+    const response = await adminServices.put(
+      `/vendors/reject-vendor/${vendorId}/${empId}`,
+      { reason }
+    );
+    return response;
+  } catch (err) {
+    return err;
+  }
+};
+
 // export const RegVendorData = async (formData) => {
 //   try {
 //     const response = await adminServices.post(`/vendors/create`, formData);
@@ -1448,3 +1504,42 @@ export const deletePOPolicy = async () => {
     return err;
   }
 };
+
+export const getPoPolicyLink = async () => {
+
+  try {
+    const response = await adminServices.get(
+      `/vendors/get-po-policy-file-link`
+    );
+    return response;
+  } catch (err) {
+    return err;
+  }
+};
+
+export const teamVerifiedTheVendorData = async (vendorId, empId, reason) => {
+
+  try {
+    const response = await adminServices.put(
+      `/vendors/team-verified-the-vendor-data/${vendorId}/${empId}`, { reason }
+    );
+    return response;
+  } catch (err) {
+    return err;
+  }
+};
+
+export const teamRejectTheVendorData = async (vendorId, empId, reason) => {
+
+  try {
+    const response = await adminServices.put(
+      `/vendors/team-reject-the-vendor-data/${vendorId}/${empId}`, { reason }
+    );
+    return response;
+  } catch (err) {
+    return err;
+  }
+};
+
+
+

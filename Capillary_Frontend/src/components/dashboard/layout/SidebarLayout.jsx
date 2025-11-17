@@ -17,32 +17,36 @@ import {
 } from "lucide-react";
 import TopBar from "./TopBar";
 import { ToastContainer } from "react-toastify";
+import { getLegalVendorsCount, getVendorManagementCount } from "../../../api/service/adminServices";
 
-const SidebarItem = ({ icon: Icon, title, isActive, path }) => {
+
+const SidebarItem = ({ icon: Icon, title, isActive, path, badgeCount }) => {
   return (
-    <Link to={path} className="cursor-pointer px-2">
+    <Link to={path} className="cursor-pointer px-2 relative">
       <div
         className={`aspect-square flex flex-col items-center justify-center p-2 rounded-lg transition-all duration-200 ease-in-out
           hover:bg-primary hover:text-white
-          ${
-            isActive
-              ? "bg-primary text-white"
-              : "text-gray-600 border-transparent"
+          ${isActive
+            ? "bg-primary text-white"
+            : "text-gray-600 border-transparent"
           }
           `}
       >
         <Icon
-          className={`w-5 h-5 mb-2 ${
-            isActive ? "text-white" : "text-primary"
-          } group-hover:text-white`}
+          className={`w-5 h-5 mb-2 ${isActive ? "text-white" : "text-primary"
+            } group-hover:text-white`}
         />
         <span
-          className={`text-xs font-medium text-center leading-tight ${
-            isActive ? "text-white" : ""
-          }`}
+          className={`text-xs font-medium text-center leading-tight ${isActive ? "text-white" : ""
+            }`}
         >
           {title}
         </span>
+        {badgeCount > 0 && (
+          <span className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+            {badgeCount > 99 ? '99+' : badgeCount}
+          </span>
+        )}
       </div>
     </Link>
   );
@@ -54,6 +58,10 @@ const SidebarLayout = () => {
   const multiRole = localStorage.getItem("multiRole") || "0";
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [legalVendorsCount, setLegalVendorsCount] = useState(0); // Set to 5 for testing
+  const [vendorManagementCount, setVendorManagementCount] = useState(0); // Badge count for Vendor Management
+
+  console.log("Current role:", role);
 
   useEffect(() => {
     const checkIfMobile = () => {
@@ -65,6 +73,59 @@ const SidebarLayout = () => {
 
     return () => window.removeEventListener("resize", checkIfMobile);
   }, []);
+
+  // Fetch legal vendors count for Legal Team role
+  useEffect(() => {
+    if (role === "Legal Team") {
+      const fetchLegalVendorsCount = async () => {
+        try {
+          console.log("Fetching legal vendors count...");
+          const response = await getLegalVendorsCount();
+          console.log("API response:", response);
+          if (response.status === 200) {
+            console.log("Setting count to:", response.data.count);
+            setLegalVendorsCount(response.data.vendorDeviationData);
+          }
+
+          else {
+            console.log("No count data, setting fallback to 1");
+            setLegalVendorsCount(0);
+          }
+        } catch (error) {
+          console.error("Failed to fetch legal vendors count:", error);
+          console.log("Setting fallback count to 1 due to error");
+          setLegalVendorsCount(0);
+        }
+      };
+
+      fetchLegalVendorsCount();
+    }
+  }, [role]);
+
+  // Fetch vendor management count for Vendor Management role
+  useEffect(() => {
+    if (role === "Vendor Management") {
+      const fetchVendorManagementCount = async () => {
+        try {
+          console.log("Fetching vendor management count...");
+          const response = await getVendorManagementCount();
+          console.log("Vendor Management API response:", response);
+          if (response.status === 200) {
+
+            setVendorManagementCount(response.data.vendorApproveData || 0);
+          } else {
+            console.log("No vendor management count data, setting fallback to 0");
+            setVendorManagementCount(0);
+          }
+        } catch (error) {
+          console.error("Failed to fetch vendor management count:", error);
+          setVendorManagementCount(0);
+        }
+      };
+
+      fetchVendorManagementCount();
+    }
+  }, [role]);
 
   const isRouteActive = (path) => {
     if (location.pathname === path) return true;
@@ -126,6 +187,12 @@ const SidebarLayout = () => {
         title: `${role} Approvals`,
         path: "/role-based-approvals-list",
       },
+      {
+        icon: Building2,
+        title: "Vendors",
+        path: "/vendor/pending-vendor-list-table",
+        badgeCount: legalVendorsCount
+      },
       { icon: HelpCircle, title: "Questions", path: "/questions" },
     ],
     "Info Security": [
@@ -142,7 +209,12 @@ const SidebarLayout = () => {
         title: `${role} Approvals`,
         path: "/role-based-approvals-list",
       },
-      { icon: Building2, title: "Vendors", path: "/vendor-list-table" },
+      {
+        icon: Building2,
+        title: "Vendors",
+        path: "/vendor-list-table",
+        badgeCount: vendorManagementCount
+      },
     ],
     "Head of Finance": [
       {
@@ -209,13 +281,11 @@ const SidebarLayout = () => {
 
       <div className="flex flex-1 mt-10 scrollbar-none overflow-y-scroll">
         <div
-          className={`${
-            isMobile
-              ? `fixed inset-y-0 left-0 transform ${
-                  isSidebarOpen ? "translate-x-0" : "-translate-x-full"
-                } z-10 mt-20 transition-transform duration-300 ease-in-out`
-              : "w-28 h-full fixed"
-          } bg-white border-r border-gray-200 scrollbar-none overflow-y-scroll`}
+          className={`${isMobile
+            ? `fixed inset-y-0 left-0 transform ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"
+            } z-10 mt-20 transition-transform duration-300 ease-in-out`
+            : "w-28 h-full fixed"
+            } bg-white border-r border-gray-200 scrollbar-none overflow-y-scroll`}
         >
           <div className="flex flex-col py-6">
             <div className="grid grid-cols-1 gap-4 mt-5 mb-10">
@@ -226,6 +296,7 @@ const SidebarLayout = () => {
                   title={item.title}
                   path={item.path}
                   isActive={isRouteActive(item.path)}
+                  badgeCount={item.badgeCount || 0}
                 />
               ))}
             </div>
@@ -243,9 +314,8 @@ const SidebarLayout = () => {
         />
 
         <div
-          className={`flex-1 ${
-            isMobile ? "ml-0" : "ml-28"
-          } scrollbar-none overflow-y-scroll bg-gray-50 pt-4`}
+          className={`flex-1 ${isMobile ? "ml-0" : "ml-28"
+            } scrollbar-none overflow-y-scroll bg-gray-50 pt-4`}
         >
           <div className="p-2 sm:p-8">
             <Outlet />

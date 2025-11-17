@@ -2,8 +2,141 @@ const Vendor = require("../models/vendorModel");
 const generateVendorId = require("../utils/generateVendorId");
 const vendorPolicyFile = require("../models/vendorPolicyFile");
 const poPolicyFile = require("../models/poPolicyFile");
+const Employee = require("../models/empModel");
 
 // Create a new vendor
+// exports.createVendor = async (req, res) => {
+//   try {
+//     console.log("Create Vendor Request:", req.body);
+
+//     // Handle questionnaireAnswer safely
+//     if (req.body.questionnaireAnswer) {
+//       let questionnaireData = {};
+
+//       // If it's a string, try parsing JSON
+//       if (typeof req.body.questionnaireAnswer === "string") {
+//         try {
+//           questionnaireData = JSON.parse(req.body.questionnaireAnswer);
+//         } catch (err) {
+//           console.error("Invalid questionnaireAnswer JSON:", err);
+//           return res.status(400).json({
+//             message: "Invalid questionnaireAnswer format. Must be a valid JSON string."
+//           });
+//         }
+//       } else if (typeof req.body.questionnaireAnswer === "object") {
+//         questionnaireData = req.body.questionnaireAnswer;
+//       }
+
+//       // Assign to schema field
+//       req.body.questionnaireData = questionnaireData;
+//       delete req.body.questionnaireAnswer; // clean up unused field
+//     }
+
+//     // Create and save vendor
+//     const vendor = new Vendor(req.body);
+//     await vendor.save();
+
+//     res.status(201).json({
+//       message: "Vendor created successfully",
+//       vendor
+//     });
+//   } catch (error) {
+//     console.error("Error creating vendor:", error);
+//     res.status(400).json({ message: error.message });
+//   }
+// };
+// exports.createNewVendor = async (req, res) => {
+//   try {
+//     const { empId } = req.params;
+//     console.log("Received Vendor Data:", req.body);
+
+//     const vendorDataArray = req.body.data.map(async (vendor) => {
+//       const vendorId = vendor.ID;
+
+//       // Parse questionnaire data
+//       let questionnaireData = {};
+//       let questionnaireAnswer = "";
+
+//       try {
+//         if (vendor["Questionnaire Answer"]) {
+//           if (typeof vendor["Questionnaire Answer"] === 'string') {
+//             questionnaireData = JSON.parse(vendor["Questionnaire Answer"]);
+//             questionnaireAnswer = vendor["Questionnaire Answer"];
+//           } else if (typeof vendor["Questionnaire Answer"] === 'object') {
+//             questionnaireData = vendor["Questionnaire Answer"];
+//             questionnaireAnswer = JSON.stringify(vendor["Questionnaire Answer"]);
+//           }
+//         }
+//       } catch (error) {
+//         console.error("Error parsing questionnaire data:", error);
+//         // In case of error, store empty data
+//         questionnaireData = {};
+//         questionnaireAnswer = "";
+//       }
+
+//       const vendorPayload = {
+//         vendorName: vendor.Name,
+//         primarySubsidiary: vendor["Primary Subsidiary"],
+//         category: vendor.Category,
+//         entity: vendor.Entity,
+//         taxNumber: vendor["Tax Number"],
+//         gstin: vendor.GSTIN,
+//         msme: vendor.MSME || "",
+//         billingAddress: vendor["Billing Address"],
+//         shippingAddress: vendor["Shipping Address"],
+//         phone: vendor.Phone,
+//         email: vendor.Email || "",
+//         status: vendor.Status || "Active",
+//         bankAccountNumber: vendor["Bank Account Number"],
+//         ifscSwiftCode: vendor["IFSC/SWIFT Code"],
+//         bankName: vendor["Bank Name"],
+//         hasAgreement: vendor["Has Agreement"],
+//         agreementFileUrl: vendor["Agreement File URL"] || "",
+//         agreementFileName: vendor["Agreement File Name"] || "",
+//         questionnaireAnswer: questionnaireAnswer,
+//         questionnaireData: questionnaireData,
+//         natureOfService: vendor["Nature of Service"],
+//         panTaxFileUrl: vendor["PAN/Tax File URL"] || "",
+//         panTaxFileName: vendor["PAN/Tax File Name"] || "",
+//         gstFileUrl: vendor["GST File URL"] || "",
+//         gstFileName: vendor["GST File Name"] || "",
+//         msmeFileUrl: vendor["MSME File URL"] || "",
+//         msmeFileName: vendor["MSME File Name"] || "",
+//         bankProofFileUrl: vendor["Bank Proof File URL"] || "",
+//         bankProofFileName: vendor["Bank Proof File Name"] || "",
+//         empId
+//       };
+
+//       const existingVendor = await Vendor.findOne({ vendorId });
+
+//       if (existingVendor) {
+//         return await Vendor.findOneAndUpdate(
+//           { vendorId },
+//           vendorPayload,
+//           { new: true, runValidators: true }
+//         );
+//       } else {
+//         return await Vendor.create({ vendorId, ...vendorPayload });
+//       }
+//     });
+
+//     const insertedOrUpdatedVendors = await Promise.all(vendorDataArray);
+
+//     res.status(201).json({
+//       success: true,
+//       message: "Vendors processed successfully",
+//       data: insertedOrUpdatedVendors,
+//     });
+//   } catch (error) {
+//     console.error("Error processing vendors:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Internal server error",
+//       error: error.message,
+//     });
+//   }
+// };
+
 exports.createVendor = async (req, res) => {
   try {
     console.log("Create Vendor Request:", req.body);
@@ -31,6 +164,20 @@ exports.createVendor = async (req, res) => {
       delete req.body.questionnaireAnswer; // clean up unused field
     }
 
+    // Auto-approve legal team verification if no deviation
+    if (req.body.hasAgreement === 'yes' || req.body.isDeviation === false) {
+      req.body.isLegalTeamVerified = true;
+
+      // Add auto-approval log
+      req.body.isLegalTeamVerifiedLogs = [{
+        status: true,
+        verifiedBy: 'System Auto-Approval',
+        verifiedAt: new Date(),
+        verifiedUserId: 'system',
+        comments: ['Auto-approved: Vendor has agreement, no legal verification required']
+      }];
+    }
+
     // Create and save vendor
     const vendor = new Vendor(req.body);
     await vendor.save();
@@ -44,6 +191,8 @@ exports.createVendor = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
+
 exports.createNewVendor = async (req, res) => {
   try {
     const { empId } = req.params;
@@ -106,6 +255,20 @@ exports.createNewVendor = async (req, res) => {
         empId
       };
 
+      // Auto-approve legal team verification if no deviation
+      if (vendorPayload.hasAgreement === 'yes' || vendorPayload.isDeviation === false) {
+        vendorPayload.isLegalTeamVerified = true;
+
+        // Add auto-approval log
+        vendorPayload.isLegalTeamVerifiedLogs = [{
+          status: true,
+          verifiedBy: 'System Auto-Approval',
+          verifiedAt: new Date(),
+          verifiedUserId: 'system',
+          comments: ['Auto-approved: Vendor has agreement, no legal verification required']
+        }];
+      }
+
       const existingVendor = await Vendor.findOne({ vendorId });
 
       if (existingVendor) {
@@ -142,7 +305,8 @@ exports.createNewVendor = async (req, res) => {
 exports.getAllVendors = async (req, res) => {
   try {
     const vendors = await Vendor.find();
-    res.status(200).json(vendors);
+    const vendorPolicyFiles = await vendorPolicyFile.find();
+    res.status(200).json({ vendors, vendorPolicyFiles });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -152,7 +316,8 @@ exports.getVendorAddedByMe = async (req, res) => {
   try {
     const { empId } = req.params;
     const vendors = await Vendor.find({ empId: empId });
-    res.status(200).json(vendors);
+    const vendorPolicyFiles = await vendorPolicyFile.find();
+    res.status(200).json({ vendors: vendors, vendorPolicyFiles: vendorPolicyFiles });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -425,6 +590,217 @@ exports.deletePoPolicyFile = async (req, res) => {
       return res.status(404).json({ message: "Vendor policy file not found" });
     }
     res.status(200).json({ message: "Vendor policy file deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+exports.getPoPolicyFileLink = async (req, res) => {
+  try {
+    const getPoPolicyFileLink = await poPolicyFile.findOne();
+    if (!getPoPolicyFileLink) {
+      return res.status(404).json({ message: "po policy file not found" });
+    }
+    res.status(200).json({ data: getPoPolicyFileLink.policyFile });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+exports.getVendorDeviationDataCount = async (req, res) => {
+  try {
+    const vendorDeviationData = await Vendor.find({ isDeviation: true, isLegalTeamVerified: false });
+    if (!vendorDeviationData) {
+      return res.status(404).json({ message: "Vendor deviation data not found" });
+    }
+    res.status(200).json({ vendorDeviationData: vendorDeviationData?.length || 0 });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getVendorDeviationData = async (req, res) => {
+  try {
+    const vendorDeviationData = await Vendor.find({ isDeviation: true, isLegalTeamVerified: false });
+
+    if (!vendorDeviationData) {
+      return res.status(404).json({ message: "Vendor deviation data not found" });
+    }
+    res.status(200).json({ vendorDeviationData: vendorDeviationData });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+exports.approveVendorData = async (req, res) => {
+  try {
+    const { vendorId, empId } = req.params;
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+
+    const empData = await Employee.findOne({ employee_id: empId }, { full_name: 1 });
+
+
+    vendor.isLegalTeamVerified = true;
+
+
+    vendor.isLegalTeamVerifiedLogs = {
+      status: true,
+      verifiedBy: empData?.full_name || "",
+      verifiedAt: new Date(),
+      verifiedUserId: empId,
+      comments: []
+    };
+
+    await vendor.save();
+
+    res.status(200).json({
+      message: "Vendor verified and approved by legal team successfully",
+      vendor
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.getVendorApproveDataCount = async (req, res) => {
+  try {
+    const vendorApproveData = await Vendor.find({ isLegalTeamVerified: true, isVendorTeamVerified: false });
+    if (!vendorApproveData) {
+      return res.status(404).json({ message: "Vendor approve data not found" });
+    }
+    res.status(200).json({ vendorApproveData: vendorApproveData?.length || 0 });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
+
+exports.teamVerifiedTheVendorData = async (req, res) => {
+  try {
+    const { vendorId, empId } = req.params;
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    const empData = await Employee.findOne(
+      { employee_id: empId },
+      { full_name: 1 }
+    );
+
+    // Update the boolean flag
+    vendor.isVendorTeamVerified = true;
+    vendor.status = "Active"
+
+    // PUSH the verification log (not replace)
+    vendor.isVendorTeamVerifiedLogs.push({
+      status: true,
+      verifiedBy: empData?.full_name || "",
+      verifiedAt: new Date(),
+      verifiedUserId: empId,
+      comments: []
+    });
+
+    await vendor.save();
+
+    res.status(200).json({
+      message: "Vendor verified and approved by Vendor management team successfully",
+      vendor
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
+exports.teamRejectTheVendorData = async (req, res) => {
+  try {
+    const { vendorId, empId } = req.params;
+    const { reason } = req.body;
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    const empData = await Employee.findOne(
+      { employee_id: empId },
+      { full_name: 1 }
+    );
+
+    // Update boolean
+    vendor.isVendorTeamVerified = false;
+
+    // Push logs
+    vendor.isVendorTeamVerifiedLogs.push({
+      status: false,
+      verifiedBy: empData?.full_name || "",
+      verifiedAt: new Date(),
+      verifiedUserId: empId,
+      comments: [reason]
+    });
+
+    await vendor.save();
+
+    res.status(200).json({
+      message: "Vendor rejected by Vendor Management Team",
+      vendor
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+exports.legalRejectTheVendorData = async (req, res) => {
+  try {
+    const { vendorId, empId } = req.params;
+    const { reason } = req.body;
+
+    const vendor = await Vendor.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ message: "Vendor not found" });
+    }
+
+    const empData = await Employee.findOne(
+      { employee_id: empId },
+      { full_name: 1 }
+    );
+
+    // Update boolean
+    vendor.isLegalTeamVerified = false;
+
+    // Push logs
+    vendor.isLegalTeamVerifiedLogs.push({
+      status: false,
+      verifiedBy: empData?.full_name || "",
+      verifiedAt: new Date(),
+      verifiedUserId: empId,
+      comments: [reason]
+    });
+
+    await vendor.save();
+
+    res.status(200).json({
+      message: "Vendor rejected by Legal Team",
+      vendor
+    });
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -8,7 +8,7 @@ import uploadFilesVendor from "../../../utils/s3VendorUpload";
 import { Info } from "lucide-react";
 
 const validationSchema = Yup.object({
-  vendorId: Yup.string().nullable(),
+  vendorId: Yup.string().required("Vendor ID is required"),
   entity: Yup.string().required("Entity is required"),
   category: Yup.string().required("Category is required"),
   vendorName: Yup.string().required("Company Name is required"),
@@ -34,11 +34,11 @@ const validationSchema = Yup.object({
   questionnaireData: Yup.object().when("hasAgreement", ([hasAgreement], schema) => {
     return hasAgreement === "no"
       ? schema.shape({
-          counterpartyRequired: Yup.string().required("Please select an option"),
-          agreementType: Yup.string().required("Please select an option"),
-          serviceType: Yup.string().required("Please select an option"),
-          paymentType: Yup.string().required("Please select an option")
-        })
+        counterpartyRequired: Yup.string().required("Please select an option"),
+        agreementType: Yup.string().required("Please select an option"),
+        serviceType: Yup.string().required("Please select an option"),
+        paymentType: Yup.string().required("Please select an option")
+      })
       : schema.nullable();
   }),
   panTaxFile: Yup.mixed().required("PAN/TAX/W9 file is required"),
@@ -51,8 +51,6 @@ const VendorRegistration = () => {
   const navigate = useNavigate();
   const empId = localStorage.getItem("capEmpId");
   const [isUploadingFile, setIsUploadingFile] = useState(false);
-  const [showVendorIdTooltip, setShowVendorIdTooltip] = useState(false);
-  const [enableVendorId, setEnableVendorId] = useState(false);
 
   const formik = useFormik({
     initialValues: {
@@ -306,53 +304,28 @@ const VendorRegistration = () => {
         Vendor Registration
       </h2>
 
-      {/* Vendor ID - Manual Entry */}
+      {/* Vendor ID - Mandatory Field */}
       <div className="p-4 border rounded-lg border-primary">
         <div className="mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={enableVendorId}
-                onChange={() => setEnableVendorId(!enableVendorId)}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-            </label>
-            <span className="text-sm font-medium text-gray-700">Add Vendor ID (Optional)</span>
-            <div
-              className="ml-2 relative"
-              onMouseEnter={() => setShowVendorIdTooltip(true)}
-              onMouseLeave={() => setShowVendorIdTooltip(false)}
-            >
-              <Info className="h-4 w-4 text-gray-400 cursor-help" />
-              {showVendorIdTooltip && (
-                <div className="absolute z-10 left-0 mt-2 w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg">
-                  Toggle to add a Vendor ID if available. This field is optional.
-                </div>
-              )}
-            </div>
-          </div>
-          {enableVendorId && (
-            <div className="mt-2">
-              <input
-                type="text"
-                name="vendorId"
-                value={formik.values.vendorId}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                className={`mt-1 block w-full px-3 py-2 border ${formik.touched.vendorId && formik.errors.vendorId
-                  ? 'border-red-500'
-                  : 'border-gray-300'
-                  } rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
-                placeholder="Enter Vendor ID"
-              />
-              {formik.touched.vendorId && formik.errors.vendorId && (
-                <p className="mt-1 text-sm text-red-600">
-                  {formik.errors.vendorId}
-                </p>
-              )}
-            </div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Vendor ID <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="vendorId"
+            value={formik.values.vendorId}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            className={`mt-1 block w-full px-3 py-2 border ${formik.touched.vendorId && formik.errors.vendorId
+              ? 'border-red-500'
+              : 'border-gray-300'
+              } rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
+            placeholder="Enter Vendor ID"
+          />
+          {formik.touched.vendorId && formik.errors.vendorId && (
+            <p className="mt-1 text-sm text-red-600">
+              {formik.errors.vendorId}
+            </p>
           )}
         </div>
       </div>

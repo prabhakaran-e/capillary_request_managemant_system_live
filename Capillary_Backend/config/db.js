@@ -14,10 +14,10 @@ const dbConnect = () => {
       // `mongodb+srv://${MONGO_USERNAME_TEST}:${MONGO_PASSWORD_TEST}@cluster0.jczad.mongodb.net/${MONGO_DATABASE_NAME_TEST}`,
 
       //live
-      `mongodb+srv://${process.env.MONGO_USERNAME_PO}:${process.env.MONGO_PASSWORD_PO}@cluster0.5vetz.mongodb.net/${process.env.MONGO_DATABASE_NAME_PO}`,
+      // `mongodb+srv://${process.env.MONGO_USERNAME_PO}:${process.env.MONGO_PASSWORD_PO}@cluster0.5vetz.mongodb.net/${process.env.MONGO_DATABASE_NAME_PO}`,
 
       //sandbox
-      // `mongodb+srv://${process.env.MONGO_USERNAME_SANDBOX}:${process.env.MONGO_PASSWORD_SANDBOX}@cluster0.tz9hmqx.mongodb.net/${process.env.MONGO_DATABASE_NAME_SANDBOX}`,
+      `mongodb+srv://${process.env.MONGO_USERNAME_SANDBOX}:${process.env.MONGO_PASSWORD_SANDBOX}@cluster0.tz9hmqx.mongodb.net/${process.env.MONGO_DATABASE_NAME_SANDBOX}`,
       {
         serverSelectionTimeoutMS: 30000,
         socketTimeoutMS: 45000,

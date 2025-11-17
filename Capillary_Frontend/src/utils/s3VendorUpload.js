@@ -10,7 +10,7 @@ const uploadFilesVendor = async (files, fileType) => {
     formData.append("fileType", fileType);
 
     const response = await axios.post(
-      `${import.meta.env.VITE_BASE_URL_PO}/upload-s3/upload-vendor-details`,
+      `${import.meta.env.VITE_BASE_URL_SANDBOX}/upload-s3/upload-vendor-details`,
       
       formData,
       {

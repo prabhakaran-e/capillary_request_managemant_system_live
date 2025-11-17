@@ -16,10 +16,11 @@ const {
 const addPanelUsers = require("../models/addPanelUsers");
 const Approver = require("../models/approverSchema");
 const DarwinBox = require("../models/isDarwinEnabled");
+const poPolicyFile = require("../models/poPolicyFile");
 
 exports.generateEmpId = async (req, res) => {
   try {
-   
+
 
     let empId;
     let isUnique = false;
@@ -381,7 +382,7 @@ exports.createNewReq = async (req, res) => {
       panelMemberEmail.push(empData.hod_email_id || hodEmail.hod_email_id);
     }
 
-  
+
 
     if (!req.body.complinces || !req.body.commercials) {
       return res.status(400).json({
@@ -440,9 +441,12 @@ exports.getAllEmployeeReq = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
+    const poPolicyFileLink = await poPolicyFile.find();
+
     if (reqList.length === 0) {
       return res.status(404).json({
         message: "No requests found for the given userId",
+        poPolicyFileLink: poPolicyFileLink[0]?.policyFile || ""
       });
     }
 
@@ -471,6 +475,7 @@ exports.getAllEmployeeReq = async (req, res) => {
     return res.status(200).json({
       message: "Requests fetched successfully",
       data: processedReqData,
+      poPolicyFileLink: poPolicyFileLink[0]?.policyFile || ""
     });
   } catch (err) {
     console.error("Error fetching employee requests", err);
@@ -486,8 +491,10 @@ exports.getAdminEmployeeReq = async (req, res) => {
 
 
     const reqList = await CreateNewReq.find().sort({ createdAt: -1 }).lean();
+    const poPolicyFileLink = await poPolicyFile.find();
 
-   
+
+
 
     if (reqList.length > 0) {
       const processedReqList = reqList.map((request) => {
@@ -501,7 +508,7 @@ exports.getAdminEmployeeReq = async (req, res) => {
           } else {
             departmentInfo.nextDepartment = firstLevelApproval.hodDepartment;
           }
-        } else if (latestLevelApproval.status === "Approved" &&((request.status!=="PO-Pending")||(request.status!=="Invoice-Pending"))) {
+        } else if (latestLevelApproval.status === "Approved" && ((request.status !== "PO-Pending") || (request.status !== "Invoice-Pending"))) {
           departmentInfo.nextDepartment = latestLevelApproval.nextDepartment;
         } else if (
           latestLevelApproval.status === "Hold" ||
@@ -515,11 +522,12 @@ exports.getAdminEmployeeReq = async (req, res) => {
         return { ...request, ...departmentInfo };
       });
 
-   
+
 
       return res.status(200).json({
         message: "Requests fetched successfully",
         data: processedReqList,
+        poPolicyFileLink: poPolicyFileLink[0]?.policyFile || ""
       });
     } else {
       return res.status(404).json({
@@ -614,13 +622,13 @@ exports.getIndividualReq = async (req, res) => {
 
 exports.addNewPanelsMembers = async (req, res) => {
   try {
-    
+
     const { formData } = req.body;
 
     const existingEmployee = await addPanelUsers.findOne({
       employee_id: formData.employeeId,
     });
-    
+
 
     if (existingEmployee) {
       existingEmployee.full_name = formData.empName;
@@ -674,7 +682,7 @@ exports.getAllApprovalDatas = async (req, res) => {
 
 exports.addNewApproverData = async (req, res) => {
   try {
-   
+
 
     const { businessUnit, departmentName, approvers } = req.body.data;
 
@@ -997,7 +1005,7 @@ exports.editApproverData = async (req, res) => {
 
 exports.deleteApproverData = async (req, res) => {
   try {
-  
+
 
     const { businessUnit, departmentName, approverId } = req.body.data;
 
