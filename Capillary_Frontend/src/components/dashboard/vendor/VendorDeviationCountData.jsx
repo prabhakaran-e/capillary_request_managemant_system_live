@@ -7,6 +7,9 @@ import * as XLSX from "xlsx";
 import Pagination from "./Pagination";
 
 const VendorDeviationCountData = () => {
+    const empId = localStorage.getItem("capEmpId");
+    const role = localStorage.getItem("role");
+    const navigate = useNavigate();
     const [personalData, setPersonalData] = useState([]);
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
@@ -22,10 +25,6 @@ const VendorDeviationCountData = () => {
     const textareaRef = useRef(null);
     const itemsPerPage = 10;
     const [isLoading, setIsLoading] = useState(true);
-    const navigate = useNavigate();
-
-    // Get employeeId from localStorage
-    const empId = localStorage.getItem("capEmpId");
 
     useEffect(() => {
         const fetchVendorData = async () => {
@@ -78,6 +77,10 @@ const VendorDeviationCountData = () => {
         setCurrentPage(page);
     };
 
+    const handleViewMore = (id) => {
+        navigate(`/vendor-list-table/get-vendor/${id}`);
+    };
+
     const handleDelete = async (id) => {
         try {
             const response = await deleteVendor(id);
@@ -104,20 +107,20 @@ const VendorDeviationCountData = () => {
 
     const confirmApprove = async () => {
         try {
-            const response = await approveVendor(selectedVendorId, empId);
+            const response = await approveVendor(selectedVendorId, empId, "Approved by Legal Team");
             if (response.status === 200) {
                 setPersonalData(personalData.map(person =>
                     person._id === selectedVendorId
-                        ? { ...person, status: 'approved' }
+                        ? { ...person, isLegalTeamVerified: true }
                         : person
                 ));
-                toast.success("Vendor approved successfully");
+                toast.success("Legal team verification completed successfully");
                 cancelApprove();
             } else {
-                toast.error("Failed to approve vendor");
+                toast.error("Failed to complete verification");
             }
         } catch (error) {
-            toast.error("Error approving vendor");
+            toast.error("Error completing verification");
         }
     };
 
@@ -132,16 +135,16 @@ const VendorDeviationCountData = () => {
             if (response.status === 200) {
                 setPersonalData(personalData.map(person =>
                     person._id === selectedVendorId
-                        ? { ...person, status: 'rejected' }
+                        ? { ...person, isLegalTeamVerified: false }
                         : person
                 ));
-                toast.success("Vendor rejected successfully");
+                toast.success(response.data.message);
                 cancelReject();
             } else {
-                toast.error("Failed to reject vendor");
+                toast.error("Failed to complete rejection");
             }
         } catch (error) {
-            toast.error("Error rejecting vendor");
+            toast.error("Error completing rejection");
         }
     };
 
@@ -593,26 +596,6 @@ const VendorDeviationCountData = () => {
                                                 {person?.vendorName || person.Name}
                                             </h3>
                                         </div>
-                                        <div className="flex space-x-2">
-                                            <button
-                                                className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleApprove(person._id);
-                                                }}
-                                            >
-                                                Approve
-                                            </button>
-                                            <button
-                                                className="px-3 py-1 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleReject(person._id);
-                                                }}
-                                            >
-                                                Reject
-                                            </button>
-                                        </div>
                                     </div>
 
                                     <div className="text-xs text-gray-900 mb-1">
@@ -709,44 +692,41 @@ const VendorDeviationCountData = () => {
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap">
                                                     <div className="flex space-x-2">
-                                                        <button
-                                                            className="text-primary hover:text-primary/80"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                navigate(
-                                                                    `/vendor-list-table/edit-vendor/${person._id}`
-                                                                );
-                                                            }}
-                                                        >
-                                                            <Edit className="h-5 w-5" />
-                                                        </button>
-                                                        <button
-                                                            className="text-red-600 hover:text-red-800"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleDelete(person?._id);
-                                                            }}
-                                                        >
-                                                            <Trash2 className="h-5 w-5" />
-                                                        </button>
-                                                        <button
-                                                            className="px-3 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleApprove(person._id);
-                                                            }}
-                                                        >
-                                                            Approve
-                                                        </button>
-                                                        <button
-                                                            className="px-3 py-1 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleReject(person._id);
-                                                            }}
-                                                        >
-                                                            Reject
-                                                        </button>
+                                                        {role === "Legal Team" ? (
+                                                            <button
+                                                                className="text-primary hover:text-primary/80"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleViewMore(person._id);
+                                                                }}
+                                                                title="View More"
+                                                            >
+                                                                <Eye className="h-5 w-5" />
+                                                            </button>
+                                                        ) : (
+                                                            <>
+                                                                <button
+                                                                    className="text-primary hover:text-primary/80"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        navigate(
+                                                                            `/vendor-list-table/edit-vendor/${person._id}`
+                                                                        );
+                                                                    }}
+                                                                >
+                                                                    <Edit className="h-5 w-5" />
+                                                                </button>
+                                                                <button
+                                                                    className="text-red-600 hover:text-red-800"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleDelete(person?._id);
+                                                                    }}
+                                                                >
+                                                                    <Trash2 className="h-5 w-5" />
+                                                                </button>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </td>
                                             </tr>

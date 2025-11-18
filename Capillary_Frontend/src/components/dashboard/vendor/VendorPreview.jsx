@@ -13,10 +13,12 @@ import {
   CheckCircle,
   Clock,
   Eye,
+  XCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { getVenorIndividualData } from "../../../api/service/adminServices";
+import { getVenorIndividualData, approveVendor, rejectVendor, teamVerifiedTheVendorData, teamRejectTheVendorData } from "../../../api/service/adminServices";
+import { toast } from "react-toastify";
 
 const SectionHeader = ({ icon: Icon, title, className = "" }) => (
   <div className={`flex items-center gap-2 mb-4 ${className}`}>
@@ -178,10 +180,17 @@ const QuestionnaireCard = ({ questionnaireData }) => {
 const VendorPreview = () => {
   const { vendorId } = useParams();
   const navigate = useNavigate();
+
+  // Check if vendorId is present for Vendor Management role
+  const role = localStorage.getItem('role');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showLegalLogs, setShowLegalLogs] = useState(false);
   const [showVendorLogs, setShowVendorLogs] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [showVendorIdAlert, setShowVendorIdAlert] = useState(false);
 
   const excludeKeys = [
     "_id",
@@ -270,6 +279,11 @@ const VendorPreview = () => {
         const response = await getVenorIndividualData(vendorId);
         console.log("Vendor data:", response.data);
         setData(response.data);
+
+        // Show alert for Vendor Management if vendorId is missing
+        if (role === 'Vendor Management' && (!response.data.vendorId || response.data.vendorId.trim() === '')) {
+          setShowVendorIdAlert(true);
+        }
       } catch (error) {
         console.error("Error fetching vendor details:", error);
       } finally {
@@ -344,6 +358,86 @@ const VendorPreview = () => {
       }));
   };
 
+  // Approve/Reject handler functions
+  const handleApprove = () => {
+    setShowApproveModal(true);
+  };
+
+  const handleReject = () => {
+    setShowRejectModal(true);
+  };
+
+  const confirmApprove = async () => {
+    try {
+      const empId = localStorage.getItem('capEmpId');
+      const role = localStorage.getItem('role');
+
+      let response;
+      if (role === 'Legal Team') {
+        response = await approveVendor(vendorId, empId);
+      } else {
+        response = await teamVerifiedTheVendorData(vendorId, empId, "Approved by Vendor Management");
+      }
+
+      if (response.status === 200) {
+        if (role === 'Legal Team') {
+          setData({ ...data, status: 'approved', isLegalTeamVerified: true });
+        } else {
+          setData({ ...data, isVendorTeamVerified: true });
+        }
+        toast.success(response.data.message || "Vendor approved successfully");
+        setShowApproveModal(false);
+      } else {
+        toast.error("Failed to approve vendor");
+      }
+    } catch (error) {
+      toast.error("Error approving vendor");
+    }
+  };
+
+  const confirmReject = async () => {
+    if (!rejectionReason.trim()) {
+      toast.error("Please provide a reason for rejection");
+      return;
+    }
+
+    try {
+      const empId = localStorage.getItem('capEmpId');
+      const role = localStorage.getItem('role');
+
+      let response;
+      if (role === 'Legal Team') {
+        response = await rejectVendor(vendorId, empId, rejectionReason);
+      } else {
+        response = await teamRejectTheVendorData(vendorId, empId, rejectionReason);
+      }
+
+      if (response.status === 200) {
+        if (role === 'Legal Team') {
+          setData({ ...data, status: 'rejected', isLegalTeamVerified: false });
+        } else {
+          setData({ ...data, isVendorTeamVerified: false });
+        }
+        toast.success(response.data.message || "Vendor rejected successfully");
+        setShowRejectModal(false);
+        setRejectionReason("");
+      } else {
+        toast.error("Failed to reject vendor");
+      }
+    } catch (error) {
+      toast.error("Error rejecting vendor");
+    }
+  };
+
+  const cancelApprove = () => {
+    setShowApproveModal(false);
+  };
+
+  const cancelReject = () => {
+    setShowRejectModal(false);
+    setRejectionReason("");
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
@@ -376,6 +470,39 @@ const VendorPreview = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Vendor ID Alert Popup */}
+        {showVendorIdAlert && role === 'Vendor Management' && (
+          <div className="fixed top-15 right-4 z-50 bg-white rounded-lg shadow-lg border-l-4 border-yellow-500 p-4 max-w-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <XCircle className="h-5 w-5 text-yellow-600" />
+                </div>
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-gray-900 mb-1">Vendor ID Required</h4>
+                <p className="text-sm text-gray-600 mb-3">
+                  Vendor ID is mandatory for Vendor Management users. Please edit the vendor to add a Vendor ID.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => navigate(`/vendor-list-table/edit-vendor/${vendorId}`)}
+                    className="px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
+                  >
+                    Edit Vendor
+                  </button>
+                  <button
+                    onClick={() => setShowVendorIdAlert(false)}
+                    className="px-3 py-1.5 bg-gray-200 text-gray-700 text-sm font-medium rounded hover:bg-gray-300 transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
           <div className="flex items-center justify-between mb-6">
@@ -636,10 +763,10 @@ const VendorPreview = () => {
                             <div className="mt-1 text-sm text-gray-600">
                               By: {`${log.verifiedUserId} - ${log.verifiedBy} ` || 'Unknown'}
                             </div>
-                            {log.reason && log.reason.length > 0 && (
+                            {log.comments && log.comments.length > 0 && (
                               <div className="mt-2 text-sm text-gray-600">
                                 <span className="font-medium">Comments: </span>
-                                {log.reason.join(', ')}
+                                {log.comments.join(', ')}
                               </div>
                             )}
                           </div>
@@ -648,6 +775,108 @@ const VendorPreview = () => {
                     )}
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Approve/Reject Buttons - Role-based visibility */}
+          {(() => {
+            const role = localStorage.getItem('role');
+            if (role === 'Legal Team') {
+              return data.status === "Pending" && data.isLegalTeamVerified === false;
+            } else if (role === 'Vendor Management') {
+              return data.status === "Pending" && data.isVendorTeamVerified === false;
+            }
+            return false;
+          })() && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <button
+                    onClick={handleApprove}
+                    disabled={localStorage.getItem('role') === 'Vendor Management' && (!data.vendorId || data.vendorId.trim() === '')}
+                    className={`px-6 py-3 font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${localStorage.getItem('role') === 'Vendor Management' && (!data.vendorId || data.vendorId.trim() === '')
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                      }`}
+                  >
+                    <CheckCircle className="h-5 w-5" />
+                    Approve Vendor
+                  </button>
+                  <button
+                    onClick={handleReject}
+                    disabled={localStorage.getItem('role') === 'Vendor Management' && (!data.vendorId || data.vendorId.trim() === '')}
+                    className={`px-6 py-3 font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${localStorage.getItem('role') === 'Vendor Management' && (!data.vendorId || data.vendorId.trim() === '')
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-red-600 text-white hover:bg-red-700'
+                      }`}
+                  >
+                    <XCircle className="h-5 w-5" />
+                    Reject Vendor
+                  </button>
+                </div>
+              </div>
+            )}
+
+          {/* Approve Modal */}
+          {showApproveModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Approve Vendor</h3>
+                <p className="text-gray-600 mb-6">
+                  Are you sure you want to approve this vendor? This action cannot be undone.
+                </p>
+                <div className="flex gap-4 justify-end">
+                  <button
+                    onClick={cancelApprove}
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmApprove}
+                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                  >
+                    Approve
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Reject Modal */}
+          {showRejectModal && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Reject Vendor</h3>
+                <p className="text-gray-600 mb-4">
+                  Are you sure you want to reject this vendor? This action cannot be undone.
+                </p>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Reason for rejection <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                    rows="3"
+                    placeholder="Please provide a reason for rejection..."
+                  />
+                </div>
+                <div className="flex gap-4 justify-end">
+                  <button
+                    onClick={cancelReject}
+                    className="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmReject}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                  >
+                    Reject
+                  </button>
+                </div>
               </div>
             </div>
           )}

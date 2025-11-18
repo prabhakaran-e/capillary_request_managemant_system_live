@@ -11,6 +11,7 @@ import {
   ChevronUp,
   FileSpreadsheet,
   FileText,
+  Eye,
 } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
@@ -29,6 +30,7 @@ import {
 
 const VendorListTable = () => {
   const empId = localStorage.getItem("capEmpId");
+  const role = localStorage.getItem("role");
   const navigate = useNavigate();
   const [personalData, setPersonalData] = useState([]);
   const [vendorPolicy, setVendorPolicy] = useState(null);
@@ -120,6 +122,10 @@ const VendorListTable = () => {
   const handleReject = async (id) => {
     const vendor = personalData?.find(p => p._id === id);
     setConfirmAction({ type: 'reject', vendorId: id, vendorName: vendor?.vendorName || vendor?.Name });
+  };
+
+  const handleViewMore = (id) => {
+    navigate(`/vendor-preview/${id}`);
   };
 
   const confirmApprove = async () => {
@@ -696,33 +702,48 @@ const VendorListTable = () => {
                     </h3>
                   </div>
                   <div className="flex space-x-2">
-                    <button
-                      className="text-primary hover:text-primary/80"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(
-                          `/vendor-list-table/edit-vendor/${person._id}`
-                        );
-                      }}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button
-                      className="text-red-600 hover:text-red-800"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(person?._id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                    {activeTab === "pending" && (
+                    {role === "Legal Team" ? (
+                      <button
+                        className="text-primary hover:text-primary/80"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewMore(person._id);
+                        }}
+                        title="View More"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          className="text-primary hover:text-primary/80"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(
+                              `/vendor-list-table/edit-vendor/${person._id}`
+                            );
+                          }}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          className="text-red-600 hover:text-red-800"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDelete(person?._id);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+                    {role === "Vendor Management" && person.isLegalTeamVerified === true && person.Inactive?.toLowerCase() === "no" && (
                       <>
                         <button
                           className="px-3 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleApprove(person?._id);
+                            handleApprove(person._id);
                           }}
                           title="Approve Vendor"
                         >
@@ -732,7 +753,7 @@ const VendorListTable = () => {
                           className="px-3 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleReject(person?._id);
+                            handleReject(person._id);
                           }}
                           title="Reject Vendor"
                         >
@@ -844,33 +865,48 @@ const VendorListTable = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex space-x-2">
-                          <button
-                            className="text-primary hover:text-primary/80"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(
-                                `/vendor-list-table/edit-vendor/${person._id}`
-                              );
-                            }}
-                          >
-                            <Edit className="h-5 w-5" />
-                          </button>
-                          <button
-                            className="text-red-600 hover:text-red-800"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(person?._id);
-                            }}
-                          >
-                            <Trash2 className="h-5 w-5" />
-                          </button>
-                          {activeTab === "pending" && (
+                          {role === "Legal Team" ? (
+                            <button
+                              className="text-primary hover:text-primary/80"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewMore(person._id);
+                              }}
+                              title="View More"
+                            >
+                              <Eye className="h-5 w-5" />
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                className="text-primary hover:text-primary/80"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(
+                                    `/vendor-list-table/edit-vendor/${person._id}`
+                                  );
+                                }}
+                              >
+                                <Edit className="h-5 w-5" />
+                              </button>
+                              <button
+                                className="text-red-600 hover:text-red-800"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDelete(person?._id);
+                                }}
+                              >
+                                <Trash2 className="h-5 w-5" />
+                              </button>
+                            </>
+                          )}
+                          {role === "Vendor Management" && person.isLegalTeamVerified === true && person.Inactive?.toLowerCase() === "no" && (
                             <>
                               <button
                                 className="px-3 py-1 text-xs font-medium text-white bg-green-600 hover:bg-green-700 rounded"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleApprove(person?._id);
+                                  handleApprove(person._id);
                                 }}
                                 title="Approve Vendor"
                               >
@@ -880,7 +916,7 @@ const VendorListTable = () => {
                                 className="px-3 py-1 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleReject(person?._id);
+                                  handleReject(person._id);
                                 }}
                                 title="Reject Vendor"
                               >

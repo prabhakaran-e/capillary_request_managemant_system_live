@@ -9,8 +9,10 @@ import {
 import { toast, ToastContainer } from "react-toastify";
 
 // Validation schema
-const validationSchema = Yup.object({
-  vendorId: Yup.string().nullable(),
+const createValidationSchema = (role) => Yup.object({
+  vendorId: role === 'Vendor Management'
+    ? Yup.string().required("Vendor ID is required for Vendor Management")
+    : Yup.string().nullable(),
   entity: Yup.string().required("Entity is required"),
   category: Yup.string().required("Category is required"),
   vendorName: Yup.string().required("Company Name is required"),
@@ -47,6 +49,10 @@ const validationSchema = Yup.object({
 const EditVendor = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const role = localStorage.getItem('role');
+
+  // Create validation schema based on role
+  const validationSchema = createValidationSchema(role);
   const [isLoading, setIsLoading] = useState(true);
   const [existingFileName, setExistingFileName] = useState("");
   const [existingPanTaxFileName, setExistingPanTaxFileName] = useState("");
@@ -83,9 +89,6 @@ const EditVendor = () => {
           if (data.bankProofFileName) {
             setExistingBankProofFileName(data.bankProofFileName);
           }
-
-          const hasVendorId = !!data.vendorId;
-          setEnableVendorId(hasVendorId);
 
           // ✅ Parse questionnaire data if it exists
           let parsedQuestionnaireData = {
@@ -130,6 +133,12 @@ const EditVendor = () => {
             msmeFile: null,
             bankProofFile: null,
           });
+
+          // Enable vendorId toggle if vendorId exists (only for non-Vendor Management roles)
+          const hasVendorId = !!data.vendorId;
+          if (role !== 'Vendor Management') {
+            setEnableVendorId(hasVendorId);
+          }
         } else {
           toast.error("Failed to fetch vendor data");
         }
@@ -281,55 +290,79 @@ const EditVendor = () => {
     >
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Edit Vendor</h2>
 
-      {/* Vendor ID - Optional */}
+      {/* Vendor ID - Mandatory for Vendor Management */}
       <div className="p-4 border rounded-lg border-primary">
-        <div className="mb-4">
-          <div className="flex items-center gap-2 mb-2">
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={enableVendorId}
-                onChange={(e) => {
-                  setEnableVendorId(e.target.checked);
-                  if (!e.target.checked) {
-                    formik.setFieldValue("vendorId", "");
-                  }
-                }}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+        {role === 'Vendor Management' ? (
+          <div className="mb-4">
+            <label htmlFor="vendorId" className="block mb-2 font-medium text-gray-700">
+              Vendor ID <span className="text-red-500">*</span>
             </label>
-            <span className="text-sm font-medium text-gray-700">Add Vendor ID (Optional)</span>
-            <div
-              className="ml-2 relative"
-              onMouseEnter={() => setShowVendorIdTooltip(true)}
-              onMouseLeave={() => setShowVendorIdTooltip(false)}
-            >
-              <i className="fas fa-info-circle text-gray-400 cursor-help"></i>
-              {showVendorIdTooltip && (
-                <div className="absolute z-10 left-0 mt-2 w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg">
-                  Toggle to add a Vendor ID if available. This field is optional.
-                </div>
-              )}
-            </div>
+            <input
+              type="text"
+              name="vendorId"
+              placeholder="Enter Vendor ID (Required)"
+              value={formik.values.vendorId}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              className={`w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary ${formik.touched.vendorId && formik.errors.vendorId ? 'border-red-500' : ''
+                }`}
+            />
+            {formik.touched.vendorId && formik.errors.vendorId && (
+              <span className="text-red-500 text-sm">{formik.errors.vendorId}</span>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Vendor ID is mandatory for Vendor Management users
+            </p>
           </div>
-          {enableVendorId && (
-            <div className="mt-2">
-              <input
-                type="text"
-                name="vendorId"
-                placeholder="Enter Vendor ID"
-                value={formik.values.vendorId}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              {formik.touched.vendorId && formik.errors.vendorId && (
-                <span className="text-red-500 text-sm">{formik.errors.vendorId}</span>
-              )}
+        ) : (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={enableVendorId}
+                  onChange={(e) => {
+                    setEnableVendorId(e.target.checked);
+                    if (!e.target.checked) {
+                      formik.setFieldValue("vendorId", "");
+                    }
+                  }}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+              </label>
+              <span className="text-sm font-medium text-gray-700">Add Vendor ID (Optional)</span>
+              <div
+                className="ml-2 relative"
+                onMouseEnter={() => setShowVendorIdTooltip(true)}
+                onMouseLeave={() => setShowVendorIdTooltip(false)}
+              >
+                <i className="fas fa-info-circle text-gray-400 cursor-help"></i>
+                {showVendorIdTooltip && (
+                  <div className="absolute z-10 left-0 mt-2 w-64 p-2 bg-gray-800 text-white text-xs rounded shadow-lg">
+                    Toggle to add a Vendor ID if available. This field is optional.
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
+            {enableVendorId && (
+              <div className="mt-2">
+                <input
+                  type="text"
+                  name="vendorId"
+                  placeholder="Enter Vendor ID"
+                  value={formik.values.vendorId}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                {formik.touched.vendorId && formik.errors.vendorId && (
+                  <span className="text-red-500 text-sm">{formik.errors.vendorId}</span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Basic Information */}
@@ -570,145 +603,147 @@ const EditVendor = () => {
         </div>
       </div>
 
-      {/* Document Upload Section */}
-      <div className="p-4 border rounded-lg border-primary">
-        <h3 className="text-lg font-semibold text-primary mb-4">
-          Document Uploads
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* PAN/TAX/W9 File Upload */}
-          <div>
-            <label htmlFor="panTaxFile" className="block mb-2 font-medium">
-              Upload PAN / TAX / W9 file
-            </label>
-            {existingPanTaxFileName && (
-              <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                <p className="text-sm text-blue-800">
-                  Current file: <span className="font-semibold">{existingPanTaxFileName}</span>
+      {/* Document Upload Section - Hidden for Vendor Management */}
+      {role !== 'Vendor Management' && (
+        <div className="p-4 border rounded-lg border-primary">
+          <h3 className="text-lg font-semibold text-primary mb-4">
+            Document Uploads
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* PAN/TAX/W9 File Upload */}
+            <div>
+              <label htmlFor="panTaxFile" className="block mb-2 font-medium">
+                Upload PAN / TAX / W9 file
+              </label>
+              {existingPanTaxFileName && (
+                <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                  <p className="text-sm text-blue-800">
+                    Current file: <span className="font-semibold">{existingPanTaxFileName}</span>
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Upload a new file to replace the existing one
+                  </p>
+                </div>
+              )}
+              <input
+                type="file"
+                name="panTaxFile"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                onChange={(e) => handleDocumentFileChange(e, "panTaxFile", setExistingPanTaxFileName)}
+                onBlur={formik.handleBlur}
+                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              {formik.values.panTaxFile && (
+                <p className="text-sm text-green-600 mt-1">
+                  New file selected: {formik.values.panTaxFile.name}
                 </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  Upload a new file to replace the existing one
-                </p>
-              </div>
-            )}
-            <input
-              type="file"
-              name="panTaxFile"
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              onChange={(e) => handleDocumentFileChange(e, "panTaxFile", setExistingPanTaxFileName)}
-              onBlur={formik.handleBlur}
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            {formik.values.panTaxFile && (
-              <p className="text-sm text-green-600 mt-1">
-                New file selected: {formik.values.panTaxFile.name}
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
               </p>
-            )}
-            <p className="text-xs text-gray-500 mt-1">
-              Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
-            </p>
-          </div>
+            </div>
 
-          {/* GST File Upload */}
-          <div>
-            <label htmlFor="gstFile" className="block mb-2 font-medium">
-              Upload GST file
-            </label>
-            {existingGstFileName && (
-              <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                <p className="text-sm text-blue-800">
-                  Current file: <span className="font-semibold">{existingGstFileName}</span>
+            {/* GST File Upload */}
+            <div>
+              <label htmlFor="gstFile" className="block mb-2 font-medium">
+                Upload GST file
+              </label>
+              {existingGstFileName && (
+                <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                  <p className="text-sm text-blue-800">
+                    Current file: <span className="font-semibold">{existingGstFileName}</span>
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Upload a new file to replace the existing one
+                  </p>
+                </div>
+              )}
+              <input
+                type="file"
+                name="gstFile"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                onChange={(e) => handleDocumentFileChange(e, "gstFile", setExistingGstFileName)}
+                onBlur={formik.handleBlur}
+                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              {formik.values.gstFile && (
+                <p className="text-sm text-green-600 mt-1">
+                  New file selected: {formik.values.gstFile.name}
                 </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  Upload a new file to replace the existing one
-                </p>
-              </div>
-            )}
-            <input
-              type="file"
-              name="gstFile"
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              onChange={(e) => handleDocumentFileChange(e, "gstFile", setExistingGstFileName)}
-              onBlur={formik.handleBlur}
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            {formik.values.gstFile && (
-              <p className="text-sm text-green-600 mt-1">
-                New file selected: {formik.values.gstFile.name}
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
               </p>
-            )}
-            <p className="text-xs text-gray-500 mt-1">
-              Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
-            </p>
-          </div>
+            </div>
 
-          {/* MSME File Upload */}
-          <div>
-            <label htmlFor="msmeFile" className="block mb-2 font-medium">
-              Upload MSME file
-            </label>
-            {existingMsmeFileName && (
-              <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                <p className="text-sm text-blue-800">
-                  Current file: <span className="font-semibold">{existingMsmeFileName}</span>
+            {/* MSME File Upload */}
+            <div>
+              <label htmlFor="msmeFile" className="block mb-2 font-medium">
+                Upload MSME file
+              </label>
+              {existingMsmeFileName && (
+                <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                  <p className="text-sm text-blue-800">
+                    Current file: <span className="font-semibold">{existingMsmeFileName}</span>
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Upload a new file to replace the existing one
+                  </p>
+                </div>
+              )}
+              <input
+                type="file"
+                name="msmeFile"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                onChange={(e) => handleDocumentFileChange(e, "msmeFile", setExistingMsmeFileName)}
+                onBlur={formik.handleBlur}
+                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              {formik.values.msmeFile && (
+                <p className="text-sm text-green-600 mt-1">
+                  New file selected: {formik.values.msmeFile.name}
                 </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  Upload a new file to replace the existing one
-                </p>
-              </div>
-            )}
-            <input
-              type="file"
-              name="msmeFile"
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              onChange={(e) => handleDocumentFileChange(e, "msmeFile", setExistingMsmeFileName)}
-              onBlur={formik.handleBlur}
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            {formik.values.msmeFile && (
-              <p className="text-sm text-green-600 mt-1">
-                New file selected: {formik.values.msmeFile.name}
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
               </p>
-            )}
-            <p className="text-xs text-gray-500 mt-1">
-              Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
-            </p>
-          </div>
+            </div>
 
-          {/* Bank Account Proof Upload */}
-          <div>
-            <label htmlFor="bankProofFile" className="block mb-2 font-medium">
-              Upload bank account proof
-            </label>
-            {existingBankProofFileName && (
-              <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
-                <p className="text-sm text-blue-800">
-                  Current file: <span className="font-semibold">{existingBankProofFileName}</span>
+            {/* Bank Account Proof Upload */}
+            <div>
+              <label htmlFor="bankProofFile" className="block mb-2 font-medium">
+                Upload bank account proof
+              </label>
+              {existingBankProofFileName && (
+                <div className="mb-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                  <p className="text-sm text-blue-800">
+                    Current file: <span className="font-semibold">{existingBankProofFileName}</span>
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Upload a new file to replace the existing one
+                  </p>
+                </div>
+              )}
+              <input
+                type="file"
+                name="bankProofFile"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                onChange={(e) => handleDocumentFileChange(e, "bankProofFile", setExistingBankProofFileName)}
+                onBlur={formik.handleBlur}
+                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              {formik.values.bankProofFile && (
+                <p className="text-sm text-green-600 mt-1">
+                  New file selected: {formik.values.bankProofFile.name}
                 </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  Upload a new file to replace the existing one
-                </p>
-              </div>
-            )}
-            <input
-              type="file"
-              name="bankProofFile"
-              accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-              onChange={(e) => handleDocumentFileChange(e, "bankProofFile", setExistingBankProofFileName)}
-              onBlur={formik.handleBlur}
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            {formik.values.bankProofFile && (
-              <p className="text-sm text-green-600 mt-1">
-                New file selected: {formik.values.bankProofFile.name}
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
               </p>
-            )}
-            <p className="text-xs text-gray-500 mt-1">
-              Supported formats: PDF, DOC, DOCX, JPG, PNG (Max: 10MB)
-            </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Bank Details */}
       <div className="p-4 border rounded-lg border-primary">

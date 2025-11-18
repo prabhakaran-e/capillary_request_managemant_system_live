@@ -52,10 +52,10 @@ const Procurements = ({
             try {
                 const response = await fetchAllVendorData();
                 if (response.status === 200) {
-                    setVendors(response.data);
+                    setVendors(response?.data?.vendors);
 
                     if (formData.vendor) {
-                        const selectedVendor = response.data.find(
+                        const selectedVendor = response?.data?.vendors.find(
                             (v) =>
                                 v.vendorId === formData.vendor ||
                                 v.ID === formData.vendor

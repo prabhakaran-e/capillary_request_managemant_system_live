@@ -219,7 +219,7 @@ const MyVendorRegistration = () => {
                         response.data.message || "Vendor registered successfully!"
                     );
                     setTimeout(() => {
-                        navigate("/vendor-list-table");
+                        navigate("/vendor/my-added-vendors");
                     }, 1500);
                 }
             } catch (error) {
@@ -601,7 +601,7 @@ const MyVendorRegistration = () => {
                     {/* PAN/TAX/W9 File Upload */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            PAN/TAX Registration File <span className="text-red-500">*</span>
+                            PAN/TAX Registration File/W9 <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="file"

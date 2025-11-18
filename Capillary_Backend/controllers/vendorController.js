@@ -650,14 +650,14 @@ exports.approveVendorData = async (req, res) => {
 
     vendor.isLegalTeamVerified = true;
 
-
-    vendor.isLegalTeamVerifiedLogs = {
+    // Push logs instead of overwriting to preserve rejection history
+    vendor.isLegalTeamVerifiedLogs.push({
       status: true,
       verifiedBy: empData?.full_name || "",
       verifiedAt: new Date(),
       verifiedUserId: empId,
       comments: []
-    };
+    });
 
     await vendor.save();
 
@@ -741,6 +741,8 @@ exports.teamRejectTheVendorData = async (req, res) => {
       { employee_id: empId },
       { full_name: 1 }
     );
+
+    console.log("data", empData)
 
     // Update boolean
     vendor.isVendorTeamVerified = false;

@@ -80,7 +80,7 @@ const Procurements = ({ formData, setFormData, onBack, onNext, reqId }) => {
                 const response = await fetchAllVendorData();
                 if (response.status === 200) {
                     // Sort vendors alphabetically by name
-                    const sortedVendors = response.data.sort((a, b) => {
+                    const sortedVendors = response.data.vendors.sort((a, b) => {
                         const nameA = (
                             a.firstName ||
                             a.Name ||

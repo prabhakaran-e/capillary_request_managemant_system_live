@@ -411,9 +411,9 @@ const RequestStatistcsTable = () => {
                                             items.nextDepartment === role ||
                                             (items.nextDepartment === department || items.cDepartment === department);
 
-                                        const isHodHold = items.firstLevelApproval.hodEmail === email && items.firstLevelApproval.status === "Hold";
+                                        const isHodRejected = items.firstLevelApproval.hodEmail === email && items.firstLevelApproval.status === "Rejected";
 
-                                        return isHold && matchesDepartment && isHodHold;
+                                        return isRejected && matchesDepartment && isHodRejected;
                                     }
                                 );
                                 setUsers(filteredData);
