@@ -457,13 +457,13 @@ const VendorDeviationCountData = () => {
 
                 {/* Controls for smaller screens */}
                 <div className="md:hidden space-y-3">
-                    <button
+                    {/* <button
                         className="w-full inline-flex items-center justify-center px-4 py-2.5 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90"
                         onClick={() => navigate("/vendor-list-table/vendor-registration")}
                     >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Vendor
-                    </button>
+                    </button> */}
 
                     <div className="relative w-full">
                         <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
@@ -494,13 +494,13 @@ const VendorDeviationCountData = () => {
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                         </select>
-                        <button
+                        {/* <button
                             onClick={() => setShowImportModal(true)}
                             className="inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                         >
                             <Upload className="h-4 w-4 mr-2" />
                             Import
-                        </button>
+                        </button> */}
                     </div>
                 </div>
 
@@ -535,7 +535,7 @@ const VendorDeviationCountData = () => {
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                         </select>
-                        <button
+                        {/* <button
                             onClick={() => setShowImportModal(true)}
                             className="inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                         >
@@ -548,7 +548,7 @@ const VendorDeviationCountData = () => {
                         >
                             <Plus className="h-4 w-4 mr-2" />
                             Add Vendor
-                        </button>
+                        </button> */}
                         {vendorPolicy && (
                             <a
                                 href={vendorPolicy.policyFile}

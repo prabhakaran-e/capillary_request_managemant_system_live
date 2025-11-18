@@ -6,9 +6,9 @@ const db = require("./config/db");
 const cors = require("cors");
 const path = require("path");
 
-// ⭐ ADDED SECURITY PACKAGES
-const helmet = require("helmet");          // ADDED
-const rateLimit = require("express-rate-limit"); // ADDED
+
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 
 const userRoutes = require("./routes/userRoutes");
 const empRoutes = require("./routes/empRoutes");
@@ -38,18 +38,16 @@ async function startServer() {
     const app = express();
     const port = 5005;
 
-    // CORS headers
+
     app.use((req, res, next) => {
       res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
       res.setHeader("Cross-Origin-Embedder-Policy", "unsafe-none");
       next();
     });
 
-    // 🌐 Basic middlewares
     app.use(cors());
 
-    // ⭐ ADDED SECURITY MIDDLEWARE
-    // app.use(helmet()); // ADDED
+
     app.use(
       helmet({
         contentSecurityPolicy: {
@@ -57,36 +55,36 @@ async function startServer() {
           directives: {
             "script-src": [
               "'self'",
-              "https://accounts.google.com",   // allow Google OAuth
-              "https://apis.google.com"        // allow Google APIs
+              "https://accounts.google.com",
+              "https://apis.google.com"
             ],
             "frame-src": [
               "'self'",
               "https://accounts.google.com"
             ],
-            "connect-src": ["'self'", "*"], // optional if API calls blocked
+            "connect-src": ["'self'", "*"],
           },
         },
       })
     );
 
 
-    // ⭐ ADDED RATE LIMITING — protects from bot attacks
+
     app.use(
       rateLimit({
-        windowMs: 1 * 60 * 1000, // 1 minute
-        max: 200,                // safely higher limit
+        windowMs: 1 * 60 * 1000,
+        max: 200,
       })
-    ); // ADDED
+    );
 
-    // ⭐ IMPROVED JSON PARSER (prevents crashes)
-    app.use(express.json({ limit: "100mb", strict: false })); // ADDED better JSON parser
+
+    app.use(express.json({ limit: "100mb", strict: false }));
     app.use(bodyParser.json({ limit: "100mb" }));
     app.use(bodyParser.urlencoded({ extended: true, limit: "100mb" }));
 
     app.use(express.static(path.join(__dirname, "dist")));
 
-    // Routes
+
     app.use("/", userRoutes);
     app.use("/employees", empRoutes);
     app.use("/vendors", vendorRoutes);
@@ -103,34 +101,34 @@ async function startServer() {
     app.use("/purchase-order", poData);
     app.use("/create-smtp", smtpRouter);
 
-    // Catch-all route
+
     app.get("*", (req, res) => {
       res.sendFile(path.join(__dirname, "dist", "index.html"));
     });
 
-    // ⭐ ERROR HANDLER — invalid JSON requests
+
     app.use((err, req, res, next) => {
       if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
         console.log("❌ Invalid JSON received");
         return res.status(400).json({ message: "Invalid JSON format" });
       }
       next(err);
-    }); // ADDED
+    });
 
-    // ⭐ ERROR HANDLER — bad URLs (/../../etc/passwd attacks)
+
     app.use((err, req, res, next) => {
       if (err instanceof URIError) {
         console.log("❌ Blocked bad URI:", req.url);
         return res.status(400).send("Bad request");
       }
       next(err);
-    }); // ADDED
+    });
 
-    // ⭐ GLOBAL ERROR HANDLER (prevents app crash ➝ 502)
+
     app.use((err, req, res, next) => {
       console.error("🔥 Global Server Error:", err);
       res.status(500).json({ message: "Server error" });
-    }); // ADDED
+    });
 
     app.listen(port, () => {
       console.log(`Server is running on http://localhost:${port}`);
