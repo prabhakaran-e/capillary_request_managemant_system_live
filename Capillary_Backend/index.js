@@ -38,7 +38,7 @@ async function startServer() {
 
     // 3️⃣ Setup Express app
     const app = express();
-    const port = 5005;
+    const port = 3001;
 
     app.use((req, res, next) => {
       res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
