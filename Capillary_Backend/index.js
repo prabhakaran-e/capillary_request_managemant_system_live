@@ -27,10 +27,10 @@ dotenv.config();
 async function startServer() {
   try {
     // 1️⃣ Load secrets before anything else
-   await loadSecrets();
-  
+    await loadSecrets();
+
     require("./utils/poExpiryReminderEmail")
-  
+
 
 
     // 2️⃣ Connect to DB
@@ -38,7 +38,8 @@ async function startServer() {
 
     // 3️⃣ Setup Express app
     const app = express();
-    const port = 3001;
+    // const port = 3001;  //po
+    const port = 5005; //sandbox
 
     app.use((req, res, next) => {
       res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
