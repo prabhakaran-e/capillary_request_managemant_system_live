@@ -347,7 +347,27 @@ const VendorListTable = () => {
         return;
       }
 
-      const response = await addNewVendorsExcel(newVendors);
+      // Check if user is from VM team
+      const isVMTeam = role === 'Vendor Management';
+
+      // Process vendors - set status to 'Active' for VM team and ensure hasAgreement is set
+      const vendorsToUpload = newVendors.map(vendor => {
+        const processedVendor = { ...vendor };
+
+        // Set status to 'Active' for VM team
+        if (isVMTeam) {
+          processedVendor.status = 'Active';
+        }
+
+        // Ensure hasAgreement is set to 'yes' if not provided or empty
+        if (!processedVendor.hasAgreement || processedVendor.hasAgreement.trim() === '') {
+          processedVendor.hasAgreement = 'yes';
+        }
+
+        return processedVendor;
+      });
+
+      const response = await addNewVendorsExcel(vendorsToUpload, empId);
 
       if (response.status === 201) {
         toast.success("Vendors uploaded successfully");

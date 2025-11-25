@@ -35,7 +35,7 @@ exports.getEntityNames = async (req, res) => {
   }
 };
 
-
+    
 
 exports.getAllEntities = async (req, res) => {
   try {

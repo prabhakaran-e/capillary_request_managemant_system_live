@@ -1,128 +1,97 @@
 import * as XLSX from "xlsx";
 
-export const exportAllRequestsToExcel= (allRequests) => {
-    console.log("allRequests",allRequests)
-  const exportData = allRequests.map((request, index) => {
-    const baseExport = {
-      "SL No": index + 1,
-      "Request ID": request.reqid || "NA",
-      Requestor: request.userName || "NA",
-      "Requestor Department": request.empDepartment || "NA",
-      Status: request.status || "NA",
+export const exportAllRequestsToExcel = (allRequests) => {
+  console.log("Exporting requests:", allRequests);
+
+  const exportData = allRequests.map((request) => {
+    // Format payment terms
+    let paymentPercentage = "NA";
+    let paymentType = "NA";
+
+    if (request.commercials?.paymentTerms?.length > 0) {
+      const term = request.commercials.paymentTerms[0]; // Get first payment term
+      paymentPercentage = term.percentageTerm ? `${term.percentageTerm}%` : "NA";
+      paymentType = term.paymentType || "NA";
+    }
+
+    // Format PO dates
+    const formatDate = (dateString) => {
+      if (!dateString) return "NA";
+      try {
+        return new Date(dateString).toLocaleDateString('en-GB'); // DD/MM/YYYY format
+      } catch (e) {
+        return dateString;
+      }
     };
 
-    // Detailed Commercials Section
-    if (request.commercials) {
-      baseExport["Bill To"] = request.commercials.billTo || "NA";
-      baseExport["Business Unit"] = request.commercials.businessUnit || "NA";
-      baseExport["City"] = request.commercials.city || "NA";
-      baseExport["Cost Centre"] = request.commercials.costCentre || "NA";
-      baseExport["Department"] = request.commercials.department || "NA";
-      baseExport["Entity"] = request.commercials.entity || "NA";
-      baseExport["Entity ID"] = request.commercials.entityId || "NA";
-      baseExport["HOD"] = request.commercials.hod || "NA";
-      baseExport["HOD Email"] = request.commercials.hodEmail || "NA";
-      baseExport["Payment Mode"] = request.commercials.paymentMode || "NA";
-      baseExport["Ship To"] = request.commercials.shipTo || "NA";
-      baseExport["Site"] = request.commercials.site || "NA";
-
-      // Payment Terms Details
-      if (
-        request.commercials.paymentTerms &&
-        request.commercials.paymentTerms.length > 0
-      ) {
-        request.commercials.paymentTerms.forEach((term, termIndex) => {
-          baseExport[`Payment Term ${termIndex + 1} Percentage`] =
-            term.percentageTerm || "NA";
-          baseExport[`Payment Term ${termIndex + 1} Payment Type`] =
-            term.paymentType || "NA";
-          baseExport[`Payment Term ${termIndex + 1} Payment Term`] =
-            term.paymentTerm || "NA";
-      
-       
-        });
-      }
+    // Format service description
+    let serviceDescription = "NA";
+    if (request.supplies?.services?.length > 0) {
+      serviceDescription = request.supplies.services
+        .map(s => s.productDescription || s.productName)
+        .filter(Boolean)
+        .join(", ");
     }
 
-    // Detailed Procurements Section
-    if (request.procurements) {
-      baseExport["Quotation Date"] = request.procurements.quotationDate
-        ? new Date(request.procurements.quotationDate).toLocaleDateString()
-        : "NA";
-      baseExport["Quotation Number"] =
-        request.procurements.quotationNumber || "NA";
-      baseExport["Vendor"] = request.procurements.vendor || "NA";
-      baseExport["Vendor Name"] = request.procurements.vendorName || "NA";
-      baseExport["Vendor Email"] = request.procurements.email || "NA";
-      baseExport["Is New Vendor"] = request.procurements.isNewVendor
-        ? "Yes"
-        : "No";
-      baseExport["Service Period"] = request.procurements.servicePeriod || "NA";
-      baseExport["Project Code"] = request.procurements.projectCode || "NA";
-      baseExport["Client Name"] = request.procurements.clientName || "NA";
-      baseExport["PO Valid From"] = request.procurements.poValidFrom
-        ? new Date(request.procurements.poValidFrom).toLocaleDateString()
-        : "NA";
-      baseExport["PO Valid To"] = request.procurements.poValidTo
-        ? new Date(request.procurements.poValidTo).toLocaleDateString()
-        : "NA";
-      baseExport["PO Expiry Date"] = request.procurements.poExpiryDate
-        ? new Date(request.procurements.poExpiryDate).toLocaleDateString()
-        : "NA";
-      baseExport["Remarks"] = request.procurements.remarks || "NA";
+    // Check if it's a one-time service
+    const isOneTime = request.procurements?.servicePeriod ? "No" : "Yes";
 
-      // Uploaded Files
-      if (
-        request.procurements.uploadedFiles &&
-        request.procurements.uploadedFiles.length > 0
-      ) {
-        request.procurements.uploadedFiles.forEach((file, fileIndex) => {
-          baseExport[`Uploaded File ${fileIndex + 1}`] =
-            JSON.stringify(file) || "NA";
-        });
-      }
-    }
+    // Format total value with currency
+    const totalValue = request.supplies?.totalValue
+      ? `${request.supplies.selectedCurrency || ''} ${request.supplies.totalValue.toLocaleString()}`
+      : "NA";
 
-    // Detailed Supplies Section
-    if (request.supplies) {
-      baseExport["Total Value"] = formatCurrency(
-        request.supplies.totalValue,
-        request.supplies.selectedCurrency
-      );
-      baseExport["Selected Currency"] =
-        request.supplies.selectedCurrency || "NA";
-      baseExport["Remarks"] = request.supplies.remarks || "NA";
-
-      // Services Details
-      if (request.supplies.services && request.supplies.services.length > 0) {
-        request.supplies.services.forEach((service, serviceIndex) => {
-          baseExport[`Service ${serviceIndex + 1} Product Name`] =
-            service.productName || "NA";
-          baseExport[`Service ${serviceIndex + 1} Description`] =
-            service.productDescription || "NA";
-          baseExport[`Service ${serviceIndex + 1} Purpose`] =
-            service.productPurpose || "NA";
-          baseExport[`Service ${serviceIndex + 1} Quantity`] =
-            service.quantity || "NA";
-          baseExport[`Service ${serviceIndex + 1} Price`] =
-            service.price || "NA";
-          baseExport[`Service ${serviceIndex + 1} Tax`] = service.tax || "NA";
-        });
-      }
-    }
-
-    return baseExport;
+    return {
+      "Status of Request": request.status || "NA",
+      "Request Date": request.createdAt ? formatDate(request.createdAt) : "NA",
+      "Request ID": request.reqid || "NA",
+      "BU": request.commercials?.businessUnit || "NA",
+      "Entity": request.commercials?.entity || "NA",
+      "City": request.commercials?.city || "NA",
+      "Requestor": request.userName || "NA",
+      "Requestor Department": request.empDepartment || "NA",
+      "Cost Center": request.commercials?.costCentre || "NA",
+      "HOD": request.commercials?.hod || "NA",
+      "Vendor ID & Name": request.procurements?.vendorName
+        ? `${request.procurements.vendor || ''} - ${request.procurements.vendorName}`
+        : "NA",
+      "Payment Percentage": paymentPercentage,
+      "Payment Term": paymentType,
+      "Payment Type": request.commercials?.paymentMode || "NA",
+      "Service Description": serviceDescription,
+      "One Time": isOneTime,
+      "PO Valid from": request.procurements?.poValidFrom ? formatDate(request.procurements.poValidFrom) : "NA",
+      "PO Valid To": request.procurements?.poValidTo ? formatDate(request.procurements.poValidTo) : "NA",
+      "PO Expiry Date": request.procurements?.poExpiryDate ? formatDate(request.procurements.poExpiryDate) : "NA",
+      "PO Total Value with Currency": totalValue,
+      "Project Code": request.procurements?.projectCode || "NA",
+      "Client Name": request.procurements?.clientName || "NA",
+      "Remarks": request.procurements?.remarks || request.supplies?.remarks || "NA"
+    };
   });
 
-//   const ws = XLSX.utils.json_to_sheet(exportData);
-//   const wb = XLSX.utils.book_new();
-//   XLSX.utils.book_append_sheet(wb, ws, "All Requests");
+  // Create worksheet with the export data
+  const ws = XLSX.utils.json_to_sheet(exportData);
 
-  
-        const ws = XLSX.utils.json_to_sheet(exportData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Requests");
-        XLSX.writeFile(wb, "RequestList.xlsx");
+  // Auto-size columns
+  const wscols = Object.keys(exportData[0] || {}).map(key => ({
+    wch: Math.max(
+      key.length,
+      ...exportData.map(row => String(row[key] || '').length)
+    ) + 2 // Add some padding
+  }));
+
+  ws['!cols'] = wscols;
+
+  // Create workbook and add the worksheet
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Requests");
+
+  // Generate the Excel file
+  const fileName = `Request_Export_${new Date().toISOString().split('T')[0]}.xlsx`;
+  XLSX.writeFile(wb, fileName);
+
+  console.log("Export completed successfully");
 };
 
 const formatCurrency = (value, currency) => {

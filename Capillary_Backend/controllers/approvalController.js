@@ -979,6 +979,8 @@ const approveRequest = async (req, res) => {
           await sendEmail(entityMail.poMailId, "financeApprovalEmail", {
             reqid: reqData.reqid,
             reqId,
+            approverEmail:approverData?.company_email_id,
+            reqpreviewId:reqId
           });
         }
       } else {

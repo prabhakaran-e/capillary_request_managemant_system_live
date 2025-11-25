@@ -115,7 +115,7 @@ const emailTemplates = {
               <p>The request is now awaiting PO upload. Please proceed with the next steps.</p>
               
               <div style="text-align: center; margin-top: 20px;">
-            <a href="https://porequests.corp.capillarytech.com/req-list-table/preview-one-req/{{reqId}}" 
+            <a href="https://porequests.corp.capillarytech.com/req-list-table/hod-approve-request/{{approverEmail}}/{{reqpreviewId}}" 
 style="background-color: #28a745; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;">Upload PO</a>
               </div>
             </div>

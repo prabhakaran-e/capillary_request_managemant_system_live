@@ -23,6 +23,7 @@ import {
     sendReqEditMail,
     getAllCurrencyData,
     bulkApprovalReq,
+    getPoPolicyLink,
 } from "../../../api/service/adminServices";
 import LoadingSpinner from "../../spinner/LoadingSpinner";
 import Pagination from "./Pagination";
@@ -406,14 +407,15 @@ const RequestStatistcsTable = () => {
                             if (role === "HOD Department" || role === "Admin") {
                                 const filteredData = response.data.reqData.filter(
                                     (items) => {
-                                        const isRejected = items.firstLevelApproval.status === "Rejected";
+                                        const isRejected = items.firstLevelApproval?.status === "Rejected" ||
+                                            items.status === "Rejected";
+
                                         const matchesDepartment =
                                             items.nextDepartment === role ||
-                                            (items.nextDepartment === department || items.cDepartment === department);
+                                            items.nextDepartment === department ||
+                                            items.cDepartment === department;
 
-                                        const isHodRejected = items.firstLevelApproval.hodEmail === email && items.firstLevelApproval.status === "Rejected";
-
-                                        return isRejected && matchesDepartment && isHodRejected;
+                                        return isRejected && matchesDepartment;
                                     }
                                 );
                                 setUsers(filteredData);
@@ -1023,10 +1025,19 @@ const RequestStatistcsTable = () => {
                                 Add Request
                             </button>
                             <button
-                                className="inline-flex items-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-                                onClick={() => {
-                                    // Add your PO policy navigation/logic here
-                                    alert("PO policy feature coming soon!");
+                                className="inline-flex items-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                                onClick={async () => {
+                                    try {
+                                        const response = await getPoPolicyLink();
+                                        if (response.status === 200) {
+                                            window.open(response.data.policyUrl, '_blank', 'noopener,noreferrer');
+                                        } else {
+                                            throw new Error('No policy URL found');
+                                        }
+                                    } catch (error) {
+                                        console.error('Error fetching PO policy:', error);
+                                        toast.error('Failed to open PO policy. Please try again later.');
+                                    }
                                 }}
                             >
                                 <FileText className="h-4 w-4 mr-2" />

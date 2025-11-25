@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { RegVendorData } from "../../../api/service/adminServices";
+import { RegVendorData, getAllEntityData } from "../../../api/service/adminServices";
 import { toast, ToastContainer } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import uploadFilesVendor from "../../../utils/s3VendorUpload";
@@ -52,6 +52,8 @@ const MyVendorRegistration = () => {
     const [isUploadingFile, setIsUploadingFile] = useState(false);
     const [showVendorIdTooltip, setShowVendorIdTooltip] = useState(false);
     const [enableVendorId, setEnableVendorId] = useState(false);
+    const [entities, setEntities] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     const formik = useFormik({
         initialValues: {
@@ -234,6 +236,38 @@ const MyVendorRegistration = () => {
         },
     });
 
+    // Fetch entities for dropdown
+    useEffect(() => {
+        const formatEntityName = (name) => {
+            if (!name) return '';
+            return name
+                .toLowerCase()
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        };
+
+        const fetchEntities = async () => {
+            try {
+                const response = await getAllEntityData(empId);
+                const formattedEntities = (response.data.entities || [])
+                    .map(entity => ({
+                        ...entity,
+                        displayName: formatEntityName(entity.entityName),
+                        originalName: entity.entityName
+                    }))
+                    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+                setEntities(formattedEntities);
+                setIsLoading(false);
+            } catch (error) {
+                console.error("Failed to fetch entities:", error);
+                setIsLoading(false);
+            }
+        };
+        fetchEntities();
+    }, [empId]);
+
     // Handle file upload
     const handleFileChange = (e) => {
         const file = e.target.files[0];
@@ -360,15 +394,32 @@ const MyVendorRegistration = () => {
                         <label htmlFor="entity" className="block mb-2 font-medium">
                             Entity <span className="text-red-500">*</span>
                         </label>
-                        <input
-                            type="text"
-                            name="entity"
-                            placeholder="Enter Entity"
-                            value={formik.values.entity}
-                            onChange={formik.handleChange}
-                            onBlur={formik.handleBlur}
-                            className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-                        />
+                        {isLoading ? (
+                            <select
+                                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-gray-500"
+                                disabled
+                            >
+                                <option>Loading entities...</option>
+                            </select>
+                        ) : (
+                            <select
+                                name="entity"
+                                value={formik.values.entity}
+                                onChange={formik.handleChange}
+                                onBlur={formik.handleBlur}
+                                className={`w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary ${formik.touched.entity && formik.errors.entity
+                                        ? 'border-red-500'
+                                        : 'border-gray-300'
+                                    }`}
+                            >
+                                <option value="">Select an entity</option>
+                                {entities.map((entity) => (
+                                    <option key={entity._id || entity.entityId} value={entity.originalName}>
+                                        {entity.displayName}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
                         {formik.touched.entity && formik.errors.entity && (
                             <span className="text-red-500 text-sm">{formik.errors.entity}</span>
                         )}

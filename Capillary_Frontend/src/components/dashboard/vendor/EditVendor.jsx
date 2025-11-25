@@ -5,6 +5,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import {
   getVendorData,
   updateVendorData,
+  getAllEntityData
 } from "../../../api/service/adminServices";
 import { toast, ToastContainer } from "react-toastify";
 
@@ -29,7 +30,6 @@ const createValidationSchema = (role) => Yup.object({
   bankName: Yup.string().required("Bank Name is required"),
   hasAgreement: Yup.string().required("Agreement/EL selection is required"),
   natureOfService: Yup.string().required("Nature of Service is required"),
-  // ✅ FIXED: Conditional validation for questionnaire
   questionnaireData: Yup.object().when("hasAgreement", ([hasAgreement], schema) => {
     return hasAgreement === "no"
       ? schema.shape({
@@ -50,6 +50,7 @@ const EditVendor = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const role = localStorage.getItem('role');
+  const userId = localStorage.getItem("userId")
 
   // Create validation schema based on role
   const validationSchema = createValidationSchema(role);
@@ -61,101 +62,13 @@ const EditVendor = () => {
   const [existingBankProofFileName, setExistingBankProofFileName] = useState("");
   const [showVendorIdTooltip, setShowVendorIdTooltip] = useState(false);
   const [enableVendorId, setEnableVendorId] = useState(false);
-
-  // Fetch Vendor Data on component mount
-  useEffect(() => {
-    const fetchVendorData = async () => {
-      try {
-        setIsLoading(true);
-        const vendorData = await getVendorData(id);
-        console.log("Response Vendor Data:", vendorData);
-
-        if (vendorData.status === 200) {
-          const data = vendorData.data;
-
-          // Set existing file names if available
-          if (data.agreementFileName) {
-            setExistingFileName(data.agreementFileName);
-          }
-          if (data.panTaxFileName) {
-            setExistingPanTaxFileName(data.panTaxFileName);
-          }
-          if (data.gstFileName) {
-            setExistingGstFileName(data.gstFileName);
-          }
-          if (data.msmeFileName) {
-            setExistingMsmeFileName(data.msmeFileName);
-          }
-          if (data.bankProofFileName) {
-            setExistingBankProofFileName(data.bankProofFileName);
-          }
-
-          // ✅ Parse questionnaire data if it exists
-          let parsedQuestionnaireData = {
-            counterpartyRequired: "",
-            agreementType: "",
-            serviceType: "",
-            paymentType: ""
-          };
-
-          if (data.questionnaireAnswer) {
-            try {
-              parsedQuestionnaireData = JSON.parse(data.questionnaireAnswer);
-            } catch (e) {
-              console.error("Failed to parse questionnaire data:", e);
-            }
-          } else if (data.questionnaireData) {
-            parsedQuestionnaireData = data.questionnaireData;
-          }
-
-          formik.setValues({
-            vendorId: data.vendorId || "",
-            entity: data.entity || "",
-            category: data.category || "",
-            vendorName: data.vendorName || "",
-            email: data.email || "",
-            phone: data.phone || "",
-            billingAddress: data.billingAddress || "",
-            shippingAddress: data.shippingAddress || "",
-            taxNumber: data.taxNumber || "",
-            gstin: data.gstin || "",
-            msme: data.msme || "",
-            bankAccountNumber: data.bankAccountNumber || "",
-            ifscSwiftCode: data.ifscSwiftCode || "",
-            bankName: data.bankName || "",
-            hasAgreement: data.hasAgreement || "",
-            agreementFile: null,
-            questionnaireData: parsedQuestionnaireData,
-            natureOfService: data.natureOfService || "",
-            primarySubsidiary: data.primarySubsidiary || "",
-            panTaxFile: null,
-            gstFile: null,
-            msmeFile: null,
-            bankProofFile: null,
-          });
-
-          // Enable vendorId toggle if vendorId exists (only for non-Vendor Management roles)
-          const hasVendorId = !!data.vendorId;
-          if (role !== 'Vendor Management') {
-            setEnableVendorId(hasVendorId);
-          }
-        } else {
-          toast.error("Failed to fetch vendor data");
-        }
-      } catch (error) {
-        console.error("Failed to fetch Vendor Data:", error);
-        toast.error("Error fetching vendor data");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (id) {
-      fetchVendorData();
-    }
-  }, [id]);
+  const [entities, setEntities] = useState([]);
+  const [isEntityLoading, setIsEntityLoading] = useState(true);
+  const [vendorDataLoaded, setVendorDataLoaded] = useState(false);
 
   const formik = useFormik({
+    enableReinitialize: true,
+    validateOnMount: true,
     initialValues: {
       vendorId: "",
       entity: "",
@@ -207,7 +120,6 @@ const EditVendor = () => {
           } else if (key === "bankProofFile" && values.bankProofFile) {
             formData.append("bankProofFile", values.bankProofFile);
           } else if (key === "questionnaireData" && values.hasAgreement === "no") {
-            // ✅ Send questionnaire data as JSON string
             formData.append("questionnaireAnswer", JSON.stringify(values.questionnaireData));
           } else if (key !== "agreementFile" && key !== "panTaxFile" && key !== "gstFile" && key !== "msmeFile" && key !== "bankProofFile" && key !== "questionnaireData") {
             formData.append(key, values[key] || "");
@@ -234,12 +146,196 @@ const EditVendor = () => {
     },
   });
 
+  // Fetch entities for dropdown
+  useEffect(() => {
+    const formatEntityName = (name) => {
+      if (!name) return '';
+      let formatted = name
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+
+      formatted = formatted
+        .replace(/ Pte\./gi, ' Pte.')
+        .replace(/ Ltd\./gi, ' Ltd.')
+        .replace(/ Inc\./gi, ' Inc.');
+
+      return formatted;
+    };
+
+    const fetchEntities = async () => {
+      try {
+        const response = await getAllEntityData(userId);
+        if (response.data) {
+          const formattedEntities = response.data.entities
+            ? response.data.entities.map(entity => {
+              const displayName = formatEntityName(entity.entityName);
+              return {
+                ...entity,
+                displayName,
+                originalName: entity.entityName
+              };
+            }).sort((a, b) => a.displayName.localeCompare(b.displayName))
+            : [];
+
+          setEntities(formattedEntities);
+        }
+      } catch (error) {
+        console.error("Error fetching entities:", error);
+        toast.error("Failed to load entities");
+      } finally {
+        setIsEntityLoading(false);
+      }
+    };
+
+    fetchEntities();
+  }, []);
+
+  // Debug logs
+  useEffect(() => {
+    console.log('Current form values:', formik.values);
+    console.log('Entities:', entities);
+    console.log('Vendor data loaded:', vendorDataLoaded);
+  }, [formik.values, entities, vendorDataLoaded]);
+
+  // Match entity after both vendor data and entities are loaded
+  useEffect(() => {
+    if (vendorDataLoaded && formik.values.entity) {
+      const currentEntityValue = formik.values.entity.trim();
+      console.log('Current entity from vendor data:', currentEntityValue);
+
+      // If we have entities, try to find a match
+      if (entities.length > 0) {
+        // Try to find exact or case-insensitive match
+        const matchedEntity = entities.find(
+          e => e.entityName === currentEntityValue ||
+            e.entityName.toLowerCase() === currentEntityValue.toLowerCase() ||
+            (e.originalName && e.originalName.toLowerCase() === currentEntityValue.toLowerCase())
+        );
+
+        if (matchedEntity) {
+          console.log('Found matching entity:', matchedEntity);
+          formik.setFieldValue('entity', matchedEntity.entityName, false);
+        } else {
+          console.log('Adding vendor entity to dropdown:', currentEntityValue);
+          // Add the vendor's entity to the dropdown
+          setEntities(prev => [
+            ...prev,
+            {
+              _id: `vendor-${Date.now()}`,
+              entityName: currentEntityValue,
+              displayName: currentEntityValue,
+              originalName: currentEntityValue
+            }
+          ]);
+        }
+      }
+    }
+  }, [vendorDataLoaded, entities, formik.values.entity]);
+
+  // Fetch Vendor Data on component mount
+  useEffect(() => {
+    const fetchVendorData = async () => {
+      try {
+        setIsLoading(true);
+        const vendorData = await getVendorData(id);
+        console.log("Response Vendor Data:", vendorData);
+
+        if (vendorData.status === 200) {
+          const data = vendorData.data;
+
+          // Set existing file names if available
+          if (data.agreementFileName) {
+            setExistingFileName(data.agreementFileName);
+          }
+          if (data.panTaxFileName) {
+            setExistingPanTaxFileName(data.panTaxFileName);
+          }
+          if (data.gstFileName) {
+            setExistingGstFileName(data.gstFileName);
+          }
+          if (data.msmeFileName) {
+            setExistingMsmeFileName(data.msmeFileName);
+          }
+          if (data.bankProofFileName) {
+            setExistingBankProofFileName(data.bankProofFileName);
+          }
+
+          // Parse questionnaire data if it exists
+          let parsedQuestionnaireData = {
+            counterpartyRequired: "",
+            agreementType: "",
+            serviceType: "",
+            paymentType: ""
+          };
+
+          if (data.questionnaireAnswer) {
+            try {
+              parsedQuestionnaireData = JSON.parse(data.questionnaireAnswer);
+            } catch (e) {
+              console.error("Failed to parse questionnaire data:", e);
+            }
+          } else if (data.questionnaireData) {
+            parsedQuestionnaireData = data.questionnaireData;
+          }
+
+          formik.setValues({
+            vendorId: data.vendorId || "",
+            entity: data.entity || "",
+            category: data.category || "",
+            vendorName: data.vendorName || "",
+            email: data.email || "",
+            phone: data.phone || "",
+            billingAddress: data.billingAddress || "",
+            shippingAddress: data.shippingAddress || "",
+            taxNumber: data.taxNumber || "",
+            gstin: data.gstin || "",
+            msme: data.msme || "",
+            bankAccountNumber: data.bankAccountNumber || "",
+            ifscSwiftCode: data.ifscSwiftCode || "",
+            bankName: data.bankName || "",
+            hasAgreement: data.hasAgreement || "",
+            agreementFile: null,
+            questionnaireData: parsedQuestionnaireData,
+            natureOfService: data.natureOfService || "",
+            primarySubsidiary: data.primarySubsidiary || "",
+            panTaxFile: null,
+            gstFile: null,
+            msmeFile: null,
+            bankProofFile: null,
+          });
+
+          // Enable vendorId toggle if vendorId exists (only for non-Vendor Management roles)
+          const hasVendorId = !!data.vendorId;
+          if (role !== 'Vendor Management') {
+            setEnableVendorId(hasVendorId);
+          }
+
+          // Mark vendor data as loaded
+          setVendorDataLoaded(true);
+        } else {
+          toast.error("Failed to fetch vendor data");
+        }
+      } catch (error) {
+        console.error("Failed to fetch Vendor Data:", error);
+        toast.error("Error fetching vendor data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchVendorData();
+    }
+  }, [id]);
+
   // Handle file upload
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       formik.setFieldValue("agreementFile", file);
-      setExistingFileName(""); // Clear existing file name when new file is selected
+      setExistingFileName("");
     }
   };
 
@@ -271,7 +367,7 @@ const EditVendor = () => {
       }
 
       formik.setFieldValue(fieldName, file);
-      setExistingFileNameFunc(""); // Clear existing file name when new file is selected
+      setExistingFileNameFunc("");
     }
   };
 
@@ -374,15 +470,38 @@ const EditVendor = () => {
             <label htmlFor="entity" className="block mb-2 font-medium">
               Entity <span className="text-red-500">*</span>
             </label>
-            <input
-              type="text"
-              name="entity"
-              placeholder="Enter Entity"
-              value={formik.values.entity}
-              onChange={formik.handleChange}
-              onBlur={formik.handleBlur}
-              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-            />
+            {isEntityLoading ? (
+              <select
+                className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-gray-500"
+                disabled
+              >
+                <option>Loading entities...</option>
+              </select>
+            ) : (
+              <select
+                name="entity"
+                value={formik.values.entity || ''}
+                onChange={(e) => {
+                  console.log('Selected entity:', e.target.value);
+                  formik.handleChange(e);
+                }}
+                onBlur={formik.handleBlur}
+                className={`w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary ${formik.touched.entity && formik.errors.entity
+                  ? 'border-red-500'
+                  : 'border-gray-300'
+                  }`}
+              >
+                <option value="">Select an entity</option>
+                {entities.map((entity) => (
+                  <option
+                    key={entity._id || `entity-${entity.entityName}`}
+                    value={entity.entityName}
+                  >
+                    {entity.displayName || entity.entityName}
+                  </option>
+                ))}
+              </select>
+            )}
             {formik.touched.entity && formik.errors.entity && (
               <span className="text-red-500 text-sm">{formik.errors.entity}</span>
             )}
@@ -883,7 +1002,7 @@ const EditVendor = () => {
           </div>
         )}
 
-        {/* ✅ Conditional: Questionnaire if No Agreement */}
+        {/* Conditional: Questionnaire if No Agreement */}
         {formik.values.hasAgreement === "no" && (
           <div className="space-y-6">
             <div>

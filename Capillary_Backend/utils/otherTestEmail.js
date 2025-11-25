@@ -431,12 +431,7 @@ const sendIndividualEmail = async (
               Review & Approve Request
             </a>
           </p>
-//       <div class="action-buttons">
-//   <a href="https://porequests.corp.capillarytech.com/preview?reqId=${reqId}" 
-//      class="action-button approve-button" target="_blank">
-//      Preview Request
-//   </a>
-// </div>
+
      
     </div>
  
