@@ -321,10 +321,6 @@ const Procurements = ({ formData, setFormData, onBack, onNext, reqId }) => {
                 tempErrors.quotationDate =
                     "Quotation date cannot be more than 10 days in the past";
                 isValid = false;
-            } else if (selectedDate > maxDate) {
-                tempErrors.quotationDate =
-                    "Quotation date cannot be in the future";
-                isValid = false;
             }
         }
 
@@ -389,12 +385,6 @@ const Procurements = ({ formData, setFormData, onBack, onNext, reqId }) => {
                     ...prev,
                     quotationDate:
                         "Quotation date cannot be more than 10 days in the past",
-                }));
-                return;
-            } else if (selectedDate > maxDate) {
-                setErrors((prev) => ({
-                    ...prev,
-                    quotationDate: "Quotation date cannot be in the future",
                 }));
                 return;
             } else {
@@ -908,7 +898,6 @@ const Procurements = ({ formData, setFormData, onBack, onNext, reqId }) => {
                                 )}
                                 onChange={handleInputChange}
                                 min={getDateRange().min}
-                                max={getDateRange().max}
                                 className="w-full px-3 py-2 sm:px-4 sm:py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition duration-300"
                                 placeholder="Enter Quotation Number"
                             />
@@ -973,7 +962,6 @@ const Procurements = ({ formData, setFormData, onBack, onNext, reqId }) => {
                                         }
                                         onChange={handleInputChange}
                                         min={getDateRange().min}
-                                        max={getDateRange().max}
                                         className="w-full px-3 py-2 sm:px-4 sm:py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition duration-300"
                                     />
                                     <ErrorMessage error={errors.poValidFrom} />

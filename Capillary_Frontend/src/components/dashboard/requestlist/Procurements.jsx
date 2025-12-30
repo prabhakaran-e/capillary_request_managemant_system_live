@@ -214,7 +214,6 @@ const Procurements = ({
                         "Date cannot be more than 10 days in the past";
                     isValid = false;
                 }
-                
             }
 
             if (!formData.poValidTo) {
@@ -258,8 +257,7 @@ const Procurements = ({
                 tempErrors.quotationDate =
                     "Quotation date cannot be more than 10 days in the past";
                 isValid = false;
-            } 
-           
+            }
         }
 
         // Validate agreement dates
@@ -301,10 +299,7 @@ const Procurements = ({
                     [name]: `Date cannot be more than 10 days in the past`,
                 }));
                 return; // Don't update the formData if date is invalid
-            } 
-    
-            
-            else {
+            } else {
                 // Clear the error if date is valid
                 setErrors((prev) => ({
                     ...prev,
@@ -324,12 +319,6 @@ const Procurements = ({
                 setErrors((prev) => ({
                     ...prev,
                     quotationDate: `Quotation date cannot be more than 10 days in the past`,
-                }));
-                return;
-            } else if (selectedDate > maxDate) {
-                setErrors((prev) => ({
-                    ...prev,
-                    quotationDate: `Quotation date cannot be in the future`,
                 }));
                 return;
             } else {
@@ -774,7 +763,6 @@ const Procurements = ({
                                 value={formData.quotationDate || ""}
                                 onChange={handleInputChange}
                                 min={getMinDate()}
-                                max={getMaxDate()}
                                 className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition duration-300"
                             />
                             <ErrorMessage error={errors.quotationDate} />
@@ -833,7 +821,6 @@ const Procurements = ({
                                         value={formData.poValidFrom || ""}
                                         onChange={handleInputChange}
                                         min={getMinDate()}
-                                        max={getMaxDate()}
                                         className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition duration-300"
                                     />
                                     <ErrorMessage error={errors.poValidFrom} />

@@ -3,6 +3,61 @@ const generateVendorId = require("../utils/generateVendorId");
 const vendorPolicyFile = require("../models/vendorPolicyFile");
 const poPolicyFile = require("../models/poPolicyFile");
 const Employee = require("../models/empModel");
+const AWS = require("aws-sdk");
+require("dotenv").config();
+
+AWS.config.update({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+  signatureVersion: "v4",
+});
+
+const s3 = new AWS.S3();
+
+
+
+function getFreshSignedUrl(expiredUrl) {
+  if (!expiredUrl) return expiredUrl;
+  try {
+    const urlObj = new URL(expiredUrl);
+    // Remove leading slash from pathname
+    let pathName = decodeURIComponent(urlObj.pathname);
+    if (pathName.startsWith("/")) {
+      pathName = pathName.substring(1);
+    }
+
+    // Attempt to extract key.
+    // Logic: If "PO-Uploads" is in the path, start key from there.
+    // Otherwise, ensure we don't accidentally include the bucket name if it's in the path (Path-Style).
+
+    let key = pathName;
+    const prefixIndex = pathName.indexOf("PO-Uploads");
+
+    if (prefixIndex !== -1) {
+      key = pathName.substring(prefixIndex);
+    }
+
+    // Check if Bucket is available
+    if (!process.env.S3_BUCKET_NAME) {
+      console.error("S3_BUCKET_NAME is not defined in environment variables");
+      return expiredUrl;
+    }
+
+    const params = {
+      Bucket: process.env.S3_BUCKET_NAME,
+      Key: key,
+      Expires: 60 * 60 * 24 * 7, // 7 days
+    };
+
+    console.log("Refreshing URL for Key:", key);
+    const newUrl = s3.getSignedUrl("getObject", params);
+    return newUrl;
+  } catch (e) {
+    console.error("Error refreshing URL:", e);
+    return expiredUrl;
+  }
+}
 
 // Create a new vendor
 // exports.createVendor = async (req, res) => {
@@ -306,7 +361,15 @@ exports.getAllVendors = async (req, res) => {
   try {
     const vendors = await Vendor.find();
     const vendorPolicyFiles = await vendorPolicyFile.find();
-    res.status(200).json({ vendors, vendorPolicyFiles });
+
+    // Refresh URLs for policy files
+    const refreshedPolicies = vendorPolicyFiles.map(doc => {
+      const obj = doc.toObject();
+      obj.policyFile = getFreshSignedUrl(obj.policyFile);
+      return obj;
+    });
+
+    res.status(200).json({ vendors, vendorPolicyFiles: refreshedPolicies });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -317,7 +380,15 @@ exports.getVendorAddedByMe = async (req, res) => {
     const { empId } = req.params;
     const vendors = await Vendor.find({ empId: empId });
     const vendorPolicyFiles = await vendorPolicyFile.find();
-    res.status(200).json({ vendors: vendors, vendorPolicyFiles: vendorPolicyFiles });
+
+    // Refresh URLs for policy files
+    const refreshedPolicies = vendorPolicyFiles.map(doc => {
+      const obj = doc.toObject();
+      obj.policyFile = getFreshSignedUrl(obj.policyFile);
+      return obj;
+    });
+
+    res.status(200).json({ vendors: vendors, vendorPolicyFiles: refreshedPolicies });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -525,7 +596,15 @@ exports.getVendorPolicyFile = async (req, res) => {
     if (!vendorPolicy) {
       return res.status(404).json({ message: "Vendor policy file not found" });
     }
-    res.status(200).json(vendorPolicy);
+
+    // Refresh URL
+    const doc = vendorPolicy.toObject();
+    doc.policyFile = getFreshSignedUrl(doc.policyFile);
+
+    // Prevent caching
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+
+    res.status(200).json(doc);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -577,7 +656,14 @@ exports.getPoPolicyFile = async (req, res) => {
     if (!vendorPolicy) {
       return res.status(404).json({ message: "Vendor policy file not found" });
     }
-    res.status(200).json(vendorPolicy);
+    // Refresh URL
+    const doc = vendorPolicy.toObject();
+    doc.policyFile = getFreshSignedUrl(doc.policyFile);
+
+    // Prevent caching
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+
+    res.status(200).json(doc);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -602,7 +688,11 @@ exports.getPoPolicyFileLink = async (req, res) => {
     if (!getPoPolicyFileLink) {
       return res.status(404).json({ message: "po policy file not found" });
     }
-    res.status(200).json({ data: getPoPolicyFileLink.policyFile });
+
+    // Refresh URL
+    const freshUrl = getFreshSignedUrl(getPoPolicyFileLink.policyFile);
+
+    res.status(200).json({ data: freshUrl });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

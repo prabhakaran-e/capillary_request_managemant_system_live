@@ -25,8 +25,6 @@ import DeleteModal from "./DeleteModal";
 const ProvisonTable = () => {
   const empId = localStorage.getItem("capEmpId");
 
-
-
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -40,7 +38,7 @@ const ProvisonTable = () => {
   const [searchMode, setSearchMode] = useState("po");
   const [searchQuery, setSearchQuery] = useState("");
   const [currencies, setCurrencies] = useState([]);
-
+  const [fetchedDocs, setFetchedDocs] = useState(null);
 
   const [formData, setFormData] = useState({
     fyStart: "",
@@ -99,7 +97,6 @@ const ProvisonTable = () => {
     "dec-2025",
   ];
 
-
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -115,6 +112,7 @@ const ProvisonTable = () => {
       }
 
       setIsUploading(true);
+      setFetchedDocs(null);
 
       if (mode === "req") {
         const response = await fetchIndividualRequest(query.trim());
@@ -124,31 +122,32 @@ const ProvisonTable = () => {
 
           // Safe extraction with fallbacks
           const poNumber =
-            data.poDocuments?.poNumber ||
-            data.poNumber ||
-            data.PONumber ||
-            "";
+            data.poDocuments?.poNumber || data.poNumber || data.PONumber || "";
 
-          const vendorCode =
-            data.procurements?.vendor ||
-            "";
+          const vendorCode = data.procurements?.vendor || "";
 
-          const vendorName =
-            data.procurements?.vendorName ||
-            "";
+          const vendorName = data.procurements?.vendorName || "";
 
-          const totalValue =
-            data.supplies?.totalValue ||
-            data.totalValue ||
-            "";
+          const totalValue = data.supplies?.totalValue || data.totalValue || "";
 
-          const selectedCurrency =
-            data.supplies?.selectedCurrency ||
-            data.currency ||
-            "INR";
+          data.supplies?.selectedCurrency || data.currency || "INR";
+
+          // Documents
+          const poLink = data.poDocuments?.poLink || data.poLink || "";
+          const invoiceLink =
+            data.invoiceDocuments?.link ||
+            data.invoiceDocuments?.invoiceLink ||
+            data.invoiceLink ||
+            "";
 
           // Validate that we have at least some data
-          if (!poNumber && !vendorCode && !totalValue) {
+          if (
+            !poNumber &&
+            !vendorCode &&
+            !totalValue &&
+            !poLink &&
+            !invoiceLink
+          ) {
             showToast("No relevant data found for this Request ID", "error");
             return;
           }
@@ -157,37 +156,41 @@ const ProvisonTable = () => {
           setFormData((prev) => ({
             ...prev,
             poNumber: poNumber || prev.poNumber,
-            vendorName: vendorCode && vendorName
-              ? `${vendorCode} - ${vendorName}`
-              : vendorCode || vendorName || prev.vendorName,
+            vendorName:
+              vendorCode && vendorName
+                ? `${vendorCode} - ${vendorName}`
+                : vendorCode || vendorName || prev.vendorName,
             poValue: totalValue ? totalValue.toString() : prev.poValue,
-            currency: selectedCurrency || prev.currency
+            currency: selectedCurrency || prev.currency,
           }));
+
+          // Set fetched documents if available
+          if (poLink || invoiceLink) {
+            setFetchedDocs({ poLink, invoiceLink });
+          }
 
           // Show success message with details
           const fetchedFields = [];
           if (poNumber) fetchedFields.push("PO Number");
           if (vendorCode || vendorName) fetchedFields.push("Vendor");
           if (totalValue) fetchedFields.push("PO Value");
+          if (poLink) fetchedFields.push("PO Document");
+          if (invoiceLink) fetchedFields.push("Invoice Document");
 
           showToast(
             `Successfully fetched: ${fetchedFields.join(", ")}`,
             "success"
           );
-
         } else {
           showToast("Request not found or invalid response", "error");
         }
-
       } else if (mode === "po") {
         showToast("PO Number search functionality coming soon", "info");
         // TODO: Implement when API is available
-
       } else if (mode === "invoice") {
         showToast("Invoice Number search functionality coming soon", "info");
         // TODO: Implement when API is available
       }
-
     } catch (error) {
       console.error("Search error:", error);
 
@@ -215,7 +218,20 @@ const ProvisonTable = () => {
   };
 
   const monthValueFromIndex = (idx) => {
-    const map = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    const map = [
+      "jan",
+      "feb",
+      "mar",
+      "apr",
+      "may",
+      "jun",
+      "jul",
+      "aug",
+      "sep",
+      "oct",
+      "nov",
+      "dec",
+    ];
     return map[idx];
   };
 
@@ -495,7 +511,7 @@ const ProvisonTable = () => {
       console.error("CSV upload error:", error);
       setCsvError(
         error.message ||
-        "Error processing CSV file. Please check the format and try again."
+          "Error processing CSV file. Please check the format and try again."
       );
       showToast("CSV upload failed", "error");
     } finally {
@@ -673,6 +689,7 @@ const ProvisonTable = () => {
   };
 
   const resetForm = () => {
+    setFetchedDocs(null);
     setFormData({
       fyStart: "",
       fyEnd: "",
@@ -827,10 +844,11 @@ const ProvisonTable = () => {
       {/* Toast Notification */}
       {toast.show && (
         <div
-          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center gap-2 ${toast.type === "error"
-            ? "bg-red-100 border border-red-400 text-red-700"
-            : "bg-green-100 border border-green-400 text-green-700"
-            }`}
+          className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg flex items-center gap-2 ${
+            toast.type === "error"
+              ? "bg-red-100 border border-red-400 text-red-700"
+              : "bg-green-100 border border-green-400 text-green-700"
+          }`}
         >
           {toast.type === "error" ? (
             <AlertCircle className="w-5 h-5" />
@@ -988,6 +1006,7 @@ const ProvisonTable = () => {
             setSearchQuery={setSearchQuery}
             onSearch={onSearch}
             onAutoCalculate={onAutoCalculate}
+            fetchedDocs={fetchedDocs}
           />
         )}
 
